@@ -1,35 +1,42 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_JP, Syne } from "next/font/google";
+import { Noto_Sans_JP } from "next/font/google";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
-
-const syne = Syne({
-  subsets: ["latin"],
-  variable: "--font-syne",
-  weight: ["600", "700", "800"],
-});
 
 const noto = Noto_Sans_JP({
   subsets: ["latin"],
   variable: "--font-noto",
-  weight: ["400", "500", "700"],
+  weight: ["400", "500", "700", "900"],
 });
 
 export const metadata: Metadata = {
-  title: "PT RYUTA",
-  description: "パーソナルトレーニング記録・メニュー共有アプリ",
-  applicationName: "PT RYUTA",
+  title: "RY-LOG",
+  description: "トレーニング記録アプリ",
+  applicationName: "RY-LOG",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "PT RYUTA",
+    title: "RY-LOG",
     statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f3f5f7",
+  themeColor: "#111111",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -39,8 +46,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body className={`${syne.variable} ${noto.variable} antialiased`}>
-        <div className="shell">{children}</div>
+      <body className={`${noto.variable} antialiased`}>
+        {children}
+        <PwaRegister />
       </body>
     </html>
   );

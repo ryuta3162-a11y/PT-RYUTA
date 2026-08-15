@@ -6,41 +6,50 @@
 var SPREADSHEET_ID = '1jBDb9MmwoACaEkTYEzo4mGchsDSiyTJT1q5P9TT1p08';
 var SHEETS = {
   CONFIG: 'Config',
-  CLIENTS: 'Clients',
+  CLIENTS: '会員マスタ',
   WORKOUTS: 'Workouts',
   MENUS: 'Menus',
   EXERCISES: 'Exercises'
 };
 
 var DEFAULT_EXERCISES = [
-  ['トレッドミル', '有酸素'],
-  ['クロストレーナー', '有酸素'],
-  ['サイクル', '有酸素'],
-  ['チェストプレス', 'マシン'],
-  ['ショルダープレス', 'マシン'],
-  ['ラットプルダウン', 'マシン'],
-  ['ローイング', 'マシン'],
-  ['レッグプレス', 'マシン'],
-  ['レッグエクステンション', 'マシン'],
-  ['レッグカール', 'マシン'],
-  ['アブドミナル', 'マシン'],
-  ['バックエクステンション', 'マシン'],
-  ['ペックフライ', 'マシン'],
-  ['リアデルト', 'マシン'],
-  ['アブダクション', 'マシン'],
-  ['アダクション', 'マシン'],
-  ['カーフレイズ', 'マシン'],
-  ['マルチジャングル', 'マシン'],
-  ['パワーラック', 'フリーウェイト'],
-  ['スミスマシン', 'フリーウェイト'],
-  ['ダンベルベンチプレス', 'フリーウェイト'],
-  ['スクワット', 'フリーウェイト'],
-  ['デッドリフト', 'フリーウェイト'],
-  ['ベンチプレス', 'フリーウェイト'],
-  ['オーバーヘッドプレス', 'フリーウェイト'],
-  ['バーベルロウ', 'フリーウェイト'],
-  ['ケーブルクロス', 'フリーウェイト'],
-  ['ケトルベルスイング', 'フリーウェイト']
+  // name, category(エリア), bodyPart(部位)
+  ['トレッドミル', '有酸素', '脚'],
+  ['クロストレーナー', '有酸素', '脚'],
+  ['バイク', '有酸素', '脚'],
+  ['チェストプレス', 'マシン', '胸'],
+  ['ショルダープレス', 'マシン', '肩'],
+  ['ラットプルダウン', 'マシン', '背中'],
+  ['ロー', 'マシン', '背中'],
+  ['レッグプレス', 'マシン', '脚'],
+  ['レッグエクステンション', 'マシン', '脚'],
+  ['レッグカール', 'マシン', '脚'],
+  ['アブドミナル', 'マシン', '腹'],
+  ['グルート', 'マシン', '脚'],
+  ['バックエクステンション', 'マシン', '背中'],
+  ['トルソーローテーション', 'マシン', '腹'],
+  ['ペックフライ', 'マシン', '胸'],
+  ['リアデルト', 'マシン', '肩'],
+  ['アブダクション', 'マシン', '脚'],
+  ['アダクション', 'マシン', '脚'],
+  ['クランチ', 'マシン', '腹'],
+  ['スクワット', 'フリーウェイト', '脚'],
+  ['デッドリフト', 'フリーウェイト', '背中'],
+  ['RDL', 'フリーウェイト', '脚'],
+  ['ベンチプレス', 'フリーウェイト', '胸'],
+  ['オーバーヘッドプレス', 'フリーウェイト', '肩'],
+  ['スミススクワット', 'フリーウェイト', '脚'],
+  ['インクラインプレス', 'フリーウェイト', '胸'],
+  ['ダンベルプレス', 'フリーウェイト', '胸'],
+  ['ダンベルショルダープレス', 'フリーウェイト', '肩'],
+  ['ダンベルカール', 'フリーウェイト', '腕'],
+  ['サイドレイズ', 'フリーウェイト', '肩'],
+  ['インクラインカール', 'フリーウェイト', '腕'],
+  ['プッシュダウン', 'フリーウェイト', '腕'],
+  ['ローププレスダウン', 'フリーウェイト', '腕'],
+  ['ケーブルカール', 'フリーウェイト', '腕'],
+  ['ケーブルサイドレイズ', 'フリーウェイト', '肩'],
+  ['シーテッドロー', 'フリーウェイト', '背中']
 ];
 
 function doGet(e) {
@@ -78,24 +87,43 @@ function handleRequest(payload) {
         result = { ok: true, message: 'schema ready', sheets: Object.keys(SHEETS) };
         break;
       case 'listClients':
-        result = { ok: true, clients: listClients_() };
+        requireTrainer_(payload.pin);
+        result = { ok: true, clients: listClientsPublic_() };
         break;
       case 'upsertClient':
-        result = { ok: true, client: upsertClient_(payload) };
+        result = {
+          ok: false,
+          error: '会員の追加・変更はスプレッドシート「会員マスタ」からのみ行えます'
+        };
+        break;
+      case 'adminSyncMembers':
+        result = { ok: true, clients: adminSyncMembers_(payload) };
         break;
       case 'listWorkouts':
         result = { ok: true, workouts: listWorkouts_(payload) };
         break;
       case 'addWorkout':
+        assertMemberWrite_(payload);
         result = { ok: true, workout: addWorkout_(payload) };
         break;
       case 'addWorkouts':
+        assertMemberWrite_(payload);
         result = { ok: true, workouts: addWorkouts_(payload) };
         break;
+      case 'updateWorkout':
+        assertWorkoutTouch_(payload);
+        result = { ok: true, workout: updateWorkout_(payload) };
+        break;
+      case 'deleteWorkouts':
+        assertWorkoutsDelete_(payload);
+        result = { ok: true, deleted: deleteWorkouts_(payload) };
+        break;
       case 'listMenus':
+        requireTrainer_(payload.pin);
         result = { ok: true, menus: listMenus_(payload) };
         break;
       case 'upsertMenu':
+        requireTrainer_(payload.pin);
         result = { ok: true, menu: upsertMenu_(payload) };
         break;
       case 'getMenuByToken':
@@ -109,6 +137,9 @@ function handleRequest(payload) {
         break;
       case 'verifyClient':
         result = { ok: true, client: verifyClient_(payload.code) };
+        break;
+      case 'updateNickname':
+        result = { ok: true, client: updateNickname_(payload) };
         break;
       default:
         result = { ok: false, error: 'Unknown action: ' + action };
@@ -137,14 +168,17 @@ function ensureSchema_() {
     ['createdAt', new Date().toISOString()]
   ]);
   ensureSheet_(ss, SHEETS.CLIENTS, [
+    '会員番号',
+    '氏名',
+    '目標',
+    'メモ',
     'id',
-    'name',
-    'code',
-    'goal',
-    'notes',
-    'createdAt',
-    'active'
+    '登録日時',
+    '有効'
   ]);
+  ensureClientNicknameColumn_();
+  // 旧英語シートが残っていれば参照用に残す（空なら無視）
+  migrateLegacyClients_();
   ensureSheet_(ss, SHEETS.WORKOUTS, [
     'id',
     'timestamp',
@@ -153,6 +187,7 @@ function ensureSchema_() {
     'clientName',
     'mode',
     'exercise',
+    'minutes',
     'weight',
     'reps',
     'sets',
@@ -171,7 +206,9 @@ function ensureSchema_() {
     'updatedAt',
     'published'
   ]);
-  ensureSheet_(ss, SHEETS.EXERCISES, ['name', 'category'], DEFAULT_EXERCISES);
+  ensureSheet_(ss, SHEETS.EXERCISES, ['name', 'category', 'bodyPart'], DEFAULT_EXERCISES);
+  renameCycleToBike_();
+  replaceExerciseMaster_();
 }
 
 function ensureSheet_(ss, name, headers, seedRows) {
@@ -179,18 +216,27 @@ function ensureSheet_(ss, name, headers, seedRows) {
   if (!sheet) {
     sheet = ss.insertSheet(name);
   }
-  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var lastCol = Math.max(sheet.getLastColumn(), headers.length);
   var existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  var needsHeader =
-    sheet.getLastRow() === 0 ||
-    String(existing[0] || '') !== headers[0];
-  if (needsHeader) {
+  var headerMismatch = false;
+  for (var i = 0; i < headers.length; i++) {
+    if (String(existing[i] || '') !== headers[i]) {
+      headerMismatch = true;
+      break;
+    }
+  }
+  var needsHeader = sheet.getLastRow() === 0 || headerMismatch;
+  if (needsHeader && sheet.getLastRow() <= 1) {
     sheet.clear();
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.setFrozenRows(1);
     if (seedRows && seedRows.length) {
       sheet.getRange(2, 1, seedRows.length, headers.length).setValues(seedRows);
     }
+  } else if (needsHeader && sheet.getLastRow() > 1) {
+    // データがある場合はヘッダーだけ正しい日本語に直す
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
   } else if (seedRows && seedRows.length && sheet.getLastRow() < 2) {
     sheet.getRange(2, 1, seedRows.length, headers.length).setValues(seedRows);
   }
@@ -253,61 +299,295 @@ function uid_(prefix) {
   );
 }
 
+function migrateLegacyClients_() {
+  var ss = ss_();
+  var legacy = ss.getSheetByName('Clients');
+  if (!legacy || legacy.getLastRow() < 2) return;
+  var master = ss.getSheetByName(SHEETS.CLIENTS);
+  if (!master || master.getLastRow() > 1) return;
+  var values = legacy.getDataRange().getValues();
+  var headers = values[0];
+  var rows = values.slice(1).map(function (row) {
+    var obj = {};
+    headers.forEach(function (h, i) {
+      obj[h] = row[i];
+    });
+    return [
+      String(obj.code || ''),
+      String(obj.name || ''),
+      String(obj.goal || ''),
+      String(obj.notes || ''),
+      String(obj.id || uid_('cli')),
+      String(obj.createdAt || new Date().toISOString()),
+      String(obj.active) === 'FALSE' || String(obj.active) === 'false' ? 'FALSE' : 'TRUE'
+    ];
+  }).filter(function (r) {
+    return r[0] || r[1];
+  });
+  if (rows.length) {
+    master.getRange(2, 1, rows.length, 7).setValues(rows);
+  }
+}
+
+function normalizeMemberNo_(value) {
+  var raw = String(value || '').replace(/\D/g, '');
+  return raw;
+}
+
+function assertMemberNo_(value) {
+  var memberNo = normalizeMemberNo_(value);
+  if (!/^\d{10}$/.test(memberNo)) {
+    throw new Error('会員番号は10桁の数字で入力してください');
+  }
+  return memberNo;
+}
+
+function normalizeNick_(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+}
+
+function nickEquals_(a, b) {
+  var left = normalizeNick_(a);
+  var right = normalizeNick_(b);
+  return Boolean(left) && left === right;
+}
+
+function ensureClientNicknameColumn_() {
+  var sheet = ss_().getSheetByName(SHEETS.CLIENTS);
+  if (!sheet) return;
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (headers.indexOf('ニックネーム') >= 0) return;
+  sheet.getRange(1, lastCol + 1).setValue('ニックネーム');
+}
+
+function requireTrainer_(pin) {
+  if (!verifyTrainer_(pin)) throw new Error('管理者PINが違います');
+}
+
+function findActiveClientById_(clientId) {
+  return listAllClientRows_().find(function (c) {
+    return c.id === String(clientId || '') && c.active;
+  });
+}
+
+function requireMemberAuth_(p) {
+  var client = null;
+  if (p.clientId) client = findActiveClientById_(p.clientId);
+  if (!client && p.code) client = findClientByMemberNo_(p.code);
+  if (!client || !client.active) throw new Error('認証に失敗しました');
+  var code = normalizeMemberNo_(p.code || '');
+  if (!code || normalizeMemberNo_(client.code) !== code) {
+    throw new Error('認証に失敗しました');
+  }
+  return client;
+}
+
+function requireMemberOrTrainer_(p) {
+  if (p.pin && verifyTrainer_(p.pin)) return { role: 'trainer', client: null };
+  return { role: 'member', client: requireMemberAuth_(p) };
+}
+
+function assertMemberWrite_(p) {
+  var auth = requireMemberOrTrainer_(p);
+  if (auth.role === 'trainer') return auth;
+  if (String(p.clientId || '') !== String(auth.client.id)) {
+    throw new Error('権限がありません');
+  }
+  return auth;
+}
+
+function assertWorkoutTouch_(p) {
+  var auth = requireMemberOrTrainer_(p);
+  if (auth.role === 'trainer') return;
+  var rows = sheetValues_(SHEETS.WORKOUTS).map(normalizeWorkout_);
+  var found = rows.find(function (w) {
+    return w.id === String(p.id || '');
+  });
+  if (!found) throw new Error('workout not found');
+  if (found.clientId !== auth.client.id) throw new Error('権限がありません');
+}
+
+function assertWorkoutsDelete_(p) {
+  var auth = requireMemberOrTrainer_(p);
+  if (auth.role === 'trainer') return;
+  var ids = p.ids || (p.id ? [p.id] : []);
+  var rows = sheetValues_(SHEETS.WORKOUTS).map(normalizeWorkout_);
+  ids.forEach(function (id) {
+    var found = rows.find(function (w) {
+      return w.id === String(id);
+    });
+    if (found && found.clientId !== auth.client.id) {
+      throw new Error('権限がありません');
+    }
+  });
+}
+
 function listClients_() {
   return sheetValues_(SHEETS.CLIENTS)
     .filter(function (c) {
-      return String(c.active) !== 'FALSE' && String(c.active) !== 'false';
+      var active = c['有効'] !== undefined ? c['有効'] : c.active;
+      return String(active) !== 'FALSE' && String(active) !== 'false';
     })
     .map(normalizeClient_);
+}
+
+function listClientsPublic_() {
+  return listClients_().map(publicClient_);
 }
 
 function normalizeClient_(c) {
   return {
     id: String(c.id || ''),
-    name: String(c.name || ''),
-    code: String(c.code || ''),
-    goal: String(c.goal || ''),
-    notes: String(c.notes || ''),
-    createdAt: String(c.createdAt || ''),
-    active: String(c.active) !== 'FALSE' && String(c.active) !== 'false'
+    name: String(c['氏名'] || c.name || ''),
+    code: String(c['会員番号'] || c.code || ''),
+    nickname: String(c['ニックネーム'] || c.nickname || ''),
+    goal: String(c['目標'] || c.goal || ''),
+    notes: String(c['メモ'] || c.notes || ''),
+    createdAt: String(c['登録日時'] || c.createdAt || ''),
+    active:
+      String(c['有効'] !== undefined ? c['有効'] : c.active) !== 'FALSE' &&
+      String(c['有効'] !== undefined ? c['有効'] : c.active) !== 'false'
   };
 }
 
-function upsertClient_(p) {
-  if (!p.name) throw new Error('name is required');
+function publicClient_(c) {
+  return {
+    id: c.id,
+    name: c.name,
+    code: c.code,
+    nickname: c.nickname || '',
+    goal: c.goal || '',
+    notes: c.notes || '',
+    createdAt: c.createdAt || '',
+    active: c.active
+  };
+}
+
+function findClientByMemberNo_(memberNo) {
+  return listClients_().find(function (c) {
+    return normalizeMemberNo_(c.code) === normalizeMemberNo_(memberNo);
+  });
+}
+
+function listAllClientRows_() {
+  return sheetValues_(SHEETS.CLIENTS).map(normalizeClient_);
+}
+
+function setActiveByMemberNo_(memberNo, active) {
+  var sheet = ss_().getSheetByName(SHEETS.CLIENTS);
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var codeIdx = headers.indexOf('会員番号');
+  var activeIdx = headers.indexOf('有効');
+  if (codeIdx < 0 || activeIdx < 0) return false;
+  var target = normalizeMemberNo_(memberNo);
+  for (var r = 1; r < values.length; r++) {
+    if (normalizeMemberNo_(values[r][codeIdx]) === target) {
+      sheet.getRange(r + 1, activeIdx + 1).setValue(active ? 'TRUE' : 'FALSE');
+      return true;
+    }
+  }
+  return false;
+}
+
+function upsertClientInternal_(p) {
+  if (!p.name) throw new Error('氏名は必須です');
+  var memberNo = assertMemberNo_(p.code);
+  var nickname = String(p.nickname || '').trim();
   var now = new Date().toISOString();
-  if (p.id) {
-    var updated = updateRowById_(SHEETS.CLIENTS, p.id, {
-      name: p.name,
-      code: p.code || '',
-      goal: p.goal || '',
-      notes: p.notes || '',
-      active: p.active === false ? 'FALSE' : 'TRUE'
-    });
-    if (!updated) throw new Error('client not found');
+  var all = listAllClientRows_();
+  var existing = all.find(function (c) {
+    return normalizeMemberNo_(c.code) === memberNo;
+  });
+
+  if (existing) {
+    var patch = {
+      '氏名': p.name,
+      '会員番号': memberNo,
+      '目標': p.goal || existing.goal || '',
+      'メモ': p.notes || existing.notes || '',
+      '有効': 'TRUE'
+    };
+    if (p.nickname !== undefined) patch['ニックネーム'] = nickname;
+    var updated = updateRowById_(SHEETS.CLIENTS, existing.id, patch);
+    if (!updated) throw new Error('会員が見つかりません');
     return normalizeClient_(updated);
   }
+
   var client = {
+    '会員番号': memberNo,
+    '氏名': p.name,
+    'ニックネーム': nickname,
+    '目標': p.goal || '',
+    'メモ': p.notes || '',
     id: uid_('cli'),
-    name: p.name,
-    code: p.code || randomCode_(),
-    goal: p.goal || '',
-    notes: p.notes || '',
-    createdAt: now,
-    active: 'TRUE'
+    '登録日時': now,
+    '有効': 'TRUE'
   };
   appendRow_(SHEETS.CLIENTS, client);
   return normalizeClient_(client);
 }
 
-function randomCode_() {
-  var n = Math.floor(Math.random() * 9000) + 1000;
-  return String(n);
+/** トレーナーPIN必須。指定メンバーだけ有効にし、それ以外は無効化する */
+function adminSyncMembers_(p) {
+  if (!verifyTrainer_(p.pin)) throw new Error('管理者PINが違います');
+  var members = p.members || [];
+  if (!members.length) throw new Error('members が空です');
+
+  var keep = {};
+  var synced = members.map(function (m) {
+    var client = upsertClientInternal_(m);
+    keep[normalizeMemberNo_(client.code)] = true;
+    return client;
+  });
+
+  listAllClientRows_().forEach(function (c) {
+    var no = normalizeMemberNo_(c.code);
+    if (!keep[no]) setActiveByMemberNo_(no, false);
+  });
+
+  return listClientsPublic_();
+}
+
+function upsertClient_(p) {
+  throw new Error('会員の追加・変更はスプレッドシート「会員マスタ」からのみ行えます');
+}
+
+function verifyClient_(code) {
+  if (!code) return null;
+  var memberNo = normalizeMemberNo_(code);
+  if (!memberNo) return null;
+  var client = findClientByMemberNo_(memberNo);
+  if (!client || !client.active) return null;
+  return publicClient_(client);
+}
+
+function updateNickname_(p) {
+  var memberNo = assertMemberNo_(p.code);
+  var nickname = String(p.nickname || '').trim();
+  if (!nickname) throw new Error('ニックネームを入力してください');
+  if (nickname.length > 40) throw new Error('ニックネームは40文字以内にしてください');
+  var client = findClientByMemberNo_(memberNo);
+  if (!client || !client.active) throw new Error('会員番号が違います');
+  var updated = updateRowById_(SHEETS.CLIENTS, client.id, {
+    'ニックネーム': nickname
+  });
+  if (!updated) throw new Error('更新に失敗しました');
+  return publicClient_(normalizeClient_(updated));
 }
 
 function listWorkouts_(p) {
+  var auth = requireMemberOrTrainer_(p);
   var rows = sheetValues_(SHEETS.WORKOUTS).map(normalizeWorkout_);
-  if (p.clientId) {
+  if (auth.role === 'member') {
+    rows = rows.filter(function (w) {
+      return w.clientId === auth.client.id;
+    });
+  } else if (p.clientId) {
     rows = rows.filter(function (w) {
       return w.clientId === String(p.clientId);
     });
@@ -323,15 +603,51 @@ function listWorkouts_(p) {
   return rows.reverse();
 }
 
+function renameCycleToBike_() {
+  var sheet = ss_().getSheetByName(SHEETS.EXERCISES);
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var values = sheet.getDataRange().getValues();
+  for (var r = 1; r < values.length; r++) {
+    if (String(values[r][0]) === 'サイクル') {
+      sheet.getRange(r + 1, 1).setValue('バイク');
+    }
+  }
+}
+
+/** 種目マスタを確定リストで置き換え（アプリ側カタログと同期） */
+function replaceExerciseMaster_() {
+  var sheet = ss_().getSheetByName(SHEETS.EXERCISES);
+  if (!sheet) return;
+  sheet.clear();
+  sheet.getRange(1, 1, 1, 3).setValues([['name', 'category', 'bodyPart']]);
+  sheet.setFrozenRows(1);
+  sheet.getRange(2, 1, DEFAULT_EXERCISES.length, 3).setValues(DEFAULT_EXERCISES);
+}
+
+function listExercises_() {
+  return sheetValues_(SHEETS.EXERCISES)
+    .map(function (e) {
+      return {
+        name: String(e.name || ''),
+        category: String(e.category || ''),
+        bodyPart: String(e.bodyPart || '')
+      };
+    })
+    .filter(function (e) {
+      return e.name;
+    });
+}
+
 function normalizeWorkout_(w) {
   return {
     id: String(w.id || ''),
     timestamp: String(w.timestamp || ''),
-    date: String(w.date || ''),
+    date: normalizeDate_(w.date),
     clientId: String(w.clientId || ''),
     clientName: String(w.clientName || ''),
     mode: String(w.mode || ''),
     exercise: String(w.exercise || ''),
+    minutes: w.minutes === '' || w.minutes === null || w.minutes === undefined ? null : Number(w.minutes),
     weight: w.weight === '' || w.weight === null ? null : Number(w.weight),
     reps: w.reps === '' || w.reps === null ? null : Number(w.reps),
     sets: w.sets === '' || w.sets === null ? null : Number(w.sets),
@@ -339,6 +655,20 @@ function normalizeWorkout_(w) {
     memo: String(w.memo || ''),
     actor: String(w.actor || '')
   };
+}
+
+function normalizeDate_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'Asia/Tokyo', 'yyyy-MM-dd');
+  }
+  var raw = String(value || '');
+  var m = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  var parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, 'Asia/Tokyo', 'yyyy-MM-dd');
+  }
+  return raw;
 }
 
 function addWorkout_(p) {
@@ -352,6 +682,7 @@ function addWorkout_(p) {
     clientName: p.clientName || '',
     mode: p.mode || 'pt',
     exercise: p.exercise,
+    minutes: p.minutes === undefined || p.minutes === '' || p.minutes === null ? '' : Number(p.minutes),
     weight: p.weight === undefined || p.weight === '' ? '' : Number(p.weight),
     reps: p.reps === undefined || p.reps === '' ? '' : Number(p.reps),
     sets: p.sets === undefined || p.sets === '' ? '' : Number(p.sets),
@@ -359,6 +690,8 @@ function addWorkout_(p) {
     memo: p.memo || '',
     actor: p.actor || ''
   };
+  // Sheetsが日付型に変換しないよう文字列として明示
+  workout.date = String(workout.date);
   appendRow_(SHEETS.WORKOUTS, workout);
   maybeAddExercise_(p.exercise);
   return normalizeWorkout_(workout);
@@ -375,6 +708,7 @@ function addWorkouts_(p) {
       mode: p.mode || item.mode,
       actor: p.actor || item.actor,
       exercise: item.exercise,
+      minutes: item.minutes,
       weight: item.weight,
       reps: item.reps,
       sets: item.sets,
@@ -384,22 +718,66 @@ function addWorkouts_(p) {
   });
 }
 
+function updateWorkout_(p) {
+  if (!p.id) throw new Error('id required');
+  var patch = {};
+  if (p.exercise !== undefined) patch.exercise = p.exercise;
+  if (p.minutes !== undefined) {
+    patch.minutes =
+      p.minutes === '' || p.minutes === null ? '' : Number(p.minutes);
+  }
+  if (p.weight !== undefined) {
+    patch.weight = p.weight === '' || p.weight === null ? '' : Number(p.weight);
+  }
+  if (p.reps !== undefined) {
+    patch.reps = p.reps === '' || p.reps === null ? '' : Number(p.reps);
+  }
+  if (p.sets !== undefined) {
+    patch.sets = p.sets === '' || p.sets === null ? '' : Number(p.sets);
+  }
+  if (p.rpe !== undefined) {
+    patch.rpe = p.rpe === '' || p.rpe === null ? '' : Number(p.rpe);
+  }
+  if (p.memo !== undefined) patch.memo = p.memo || '';
+  if (p.date !== undefined) patch.date = String(p.date);
+  var updated = updateRowById_(SHEETS.WORKOUTS, p.id, patch);
+  if (!updated) throw new Error('workout not found');
+  return normalizeWorkout_(updated);
+}
+
+function deleteRowById_(name, id) {
+  var sheet = ss_().getSheetByName(name);
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var idIdx = headers.indexOf('id');
+  for (var r = values.length - 1; r >= 1; r--) {
+    if (String(values[r][idIdx]) === String(id)) {
+      sheet.deleteRow(r + 1);
+      return true;
+    }
+  }
+  return false;
+}
+
+function deleteWorkouts_(p) {
+  var ids = p.ids || (p.id ? [p.id] : []);
+  if (!ids.length) throw new Error('ids required');
+  var count = 0;
+  ids.forEach(function (id) {
+    if (deleteRowById_(SHEETS.WORKOUTS, id)) count += 1;
+  });
+  return count;
+}
+
 function maybeAddExercise_(name) {
+  // 確定リスト以外は追加しない
   var existing = listExercises_();
   var found = existing.some(function (e) {
     return e.name === name;
   });
   if (!found) {
-    appendRow_(SHEETS.EXERCISES, { name: name, category: 'カスタム' });
+    throw new Error('未登録の種目です。種目リストから選択してください: ' + name);
   }
-}
-
-function listExercises_() {
-  return sheetValues_(SHEETS.EXERCISES).map(function (e) {
-    return { name: String(e.name || ''), category: String(e.category || '') };
-  }).filter(function (e) {
-    return e.name;
-  });
 }
 
 function listMenus_(p) {
@@ -480,12 +858,4 @@ function verifyTrainer_(pin) {
   });
   var expected = row ? String(row.value) : '2468';
   return String(pin) === expected;
-}
-
-function verifyClient_(code) {
-  if (!code) return null;
-  var client = listClients_().find(function (c) {
-    return c.code === String(code);
-  });
-  return client || null;
 }

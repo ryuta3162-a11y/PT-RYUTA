@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { getExerciseKind } from "@/lib/exercises";
 import type { Exercise, WorkoutDraft } from "@/lib/types";
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 
 export function WorkoutRow({ value, onChange, exercises, onRemove }: Props) {
   const [open, setOpen] = useState(false);
+  const kind = getExerciseKind(value.exercise);
   const suggestions = useMemo(() => {
     const q = value.exercise.trim().toLowerCase();
     if (!q) return exercises.slice(0, 8);
@@ -32,7 +34,7 @@ export function WorkoutRow({ value, onChange, exercises, onRemove }: Props) {
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
-            placeholder="例: レッグプレス"
+            placeholder="例: レッグプレス / バイク"
             autoComplete="off"
           />
         </label>
@@ -61,44 +63,38 @@ export function WorkoutRow({ value, onChange, exercises, onRemove }: Props) {
         </div>
       ) : null}
 
-      <div className="grid-4">
+      {kind === "cardio" ? (
         <label className="field">
-          <span>重量kg</span>
-          <input
-            inputMode="decimal"
-            value={value.weight}
-            onChange={(e) => onChange({ ...value, weight: e.target.value })}
-            placeholder="60"
-          />
-        </label>
-        <label className="field">
-          <span>回数</span>
+          <span>時間（分）</span>
           <input
             inputMode="numeric"
-            value={value.reps}
-            onChange={(e) => onChange({ ...value, reps: e.target.value })}
-            placeholder="10"
+            value={value.minutes}
+            onChange={(e) => onChange({ ...value, minutes: e.target.value })}
+            placeholder="20"
           />
         </label>
-        <label className="field">
-          <span>セット</span>
-          <input
-            inputMode="numeric"
-            value={value.sets}
-            onChange={(e) => onChange({ ...value, sets: e.target.value })}
-            placeholder="3"
-          />
-        </label>
-        <label className="field">
-          <span>RPE</span>
-          <input
-            inputMode="decimal"
-            value={value.rpe}
-            onChange={(e) => onChange({ ...value, rpe: e.target.value })}
-            placeholder="7"
-          />
-        </label>
-      </div>
+      ) : (
+        <div className="grid-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          <label className="field">
+            <span>重量kg</span>
+            <input
+              inputMode="decimal"
+              value={value.weight}
+              onChange={(e) => onChange({ ...value, weight: e.target.value })}
+              placeholder="60"
+            />
+          </label>
+          <label className="field">
+            <span>回数</span>
+            <input
+              inputMode="numeric"
+              value={value.reps}
+              onChange={(e) => onChange({ ...value, reps: e.target.value })}
+              placeholder="10"
+            />
+          </label>
+        </div>
+      )}
       <label className="field">
         <span>メモ</span>
         <input

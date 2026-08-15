@@ -4,6 +4,8 @@ export type Client = {
   id: string;
   name: string;
   code: string;
+  /** アプリ表示用の呼び名（本人が設定） */
+  nickname?: string;
   goal: string;
   notes: string;
   createdAt: string;
@@ -18,6 +20,7 @@ export type Workout = {
   clientName: string;
   mode: WorkoutMode | string;
   exercise: string;
+  minutes: number | null;
   weight: number | null;
   reps: number | null;
   sets: number | null;
@@ -28,6 +31,7 @@ export type Workout = {
 
 export type MenuItem = {
   exercise: string;
+  minutes?: number | null;
   sets?: number | null;
   reps?: number | null;
   weight?: number | null;
@@ -49,10 +53,12 @@ export type Menu = {
 export type Exercise = {
   name: string;
   category: string;
+  bodyPart?: string;
 };
 
 export type WorkoutDraft = {
   exercise: string;
+  minutes: string;
   weight: string;
   reps: string;
   sets: string;

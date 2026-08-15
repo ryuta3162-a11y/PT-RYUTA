@@ -31,49 +31,52 @@ export default function SharedMenuPage({
 
   if (error) {
     return (
-      <main className="stack" style={{ paddingTop: 40 }}>
-        <p className="error">{error}</p>
-        <Link href="/" className="text-link">
-          トップへ
-        </Link>
+      <main className="shell plain">
+        <div className="content">
+          <p className="error">{error}</p>
+          <Link href="/" className="text-link">
+            トップへ
+          </Link>
+        </div>
       </main>
     );
   }
 
   if (!menu) {
     return (
-      <main className="stack" style={{ paddingTop: 40 }}>
-        <p className="muted">メニューを読み込み中…</p>
+      <main className="shell plain">
+        <p className="content muted">メニューを読み込み中…</p>
       </main>
     );
   }
 
   return (
-    <main className="stack" style={{ paddingTop: 28 }}>
-      <p className="eyebrow">Shared Menu</p>
-      <h1 className="brand" style={{ fontSize: "clamp(2rem, 8vw, 3.4rem)" }}>
-        PT <span>RYUTA</span>
-      </h1>
-      <div className="card stack">
-        <p className="pill">{menu.clientName || "お客様"} 向け</p>
-        <h2 style={{ margin: 0, fontFamily: "var(--font-display)" }}>{menu.title}</h2>
+    <main className="shell plain">
+      <header className="app-header">
+        <h1>{menu.title}</h1>
+        <div className="sub">{menu.clientName || "お客様"} 向けメニュー</div>
+      </header>
+      <div className="content">
         {menu.notes ? <p className="muted">{menu.notes}</p> : null}
-        <div className="menu-board">
+        <section className="section-card">
           {menu.items.map((item, idx) => (
-            <article key={`${item.exercise}-${idx}`}>
-              <p className="muted tiny">0{idx + 1}</p>
-              <h3 style={{ margin: "4px 0" }}>{item.exercise}</h3>
-              <p className="muted">
-                {item.weight ?? "-"}kg / {item.reps ?? "-"}回 / {item.sets ?? "-"}セット
-              </p>
-              {item.note ? <p className="tiny">{item.note}</p> : null}
-            </article>
+            <div key={`${item.exercise}-${idx}`} className="diary-item">
+              <div>
+                <div className="title">
+                  {idx + 1}. {item.exercise}
+                </div>
+                <div className="detail">
+                  {item.weight ?? "-"} kg / {item.reps ?? "-"} 回 / {item.sets ?? "-"} セット
+                  {item.note ? ` / ${item.note}` : ""}
+                </div>
+              </div>
+            </div>
           ))}
-        </div>
+        </section>
+        <Link className="btn primary" href="/client">
+          自トレ記録へ
+        </Link>
       </div>
-      <Link href="/client" className="btn secondary">
-        自トレ記録へ
-      </Link>
     </main>
   );
 }

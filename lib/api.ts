@@ -1,4 +1,5 @@
 import { EXERCISE_SUGGESTIONS } from "@/lib/exercises";
+import { normalizeMemberNo } from "@/lib/member";
 import type {
   Client,
   Exercise,
@@ -34,7 +35,11 @@ function emptyDb(): LocalDb {
     clients: [],
     workouts: [],
     menus: [],
-    exercises: EXERCISE_SUGGESTIONS.map((e) => ({ ...e })),
+    exercises: EXERCISE_SUGGESTIONS.map((e) => ({
+      name: e.name,
+      category: e.category,
+      bodyPart: e.bodyPart,
+    })),
     trainerPin: "2468",
   };
 }
@@ -59,15 +64,28 @@ function writeDb(db: LocalDb) {
 }
 
 export const SUGGESTED_GAS_URL =
-  "https://script.google.com/macros/s/AKfycbwRjyl8tCXDHyqRRLSvyLTQtZZJ5b8Gv6wZlWGmugqYwh_AZ6n7p-b2wbj_6IjfTxrX/exec";
+  "https://script.google.com/macros/s/AKfycbzrAS_BeNdPbyYQSmB753FnAomjXGwJoZ-UxZ9B-_KxpRW_bja4hnjhUpmh4PznLsrD/exec";
+
+const LEGACY_GAS_URLS = new Set([
+  "https://script.google.com/macros/s/AKfycbzBzUwaex0f5VnNBRoaHUCuEdIJWuxSDHH54aDZnHkGCx7HbX5U-ArilqBN-db4i486/exec",
+  "https://script.google.com/macros/s/AKfycbwRjyl8tCXDHyqRRLSvyLTQtZZJ5b8Gv6wZlWGmugqYwh_AZ6n7p-b2wbj_6IjfTxrX/exec",
+  "https://script.google.com/macros/s/AKfycbyQTSm0SHj-efIfavP16nnTBF_Nw9JCPqjv_2vtBsQjyGssMAefZXA7h15a19D1hoFD/exec",
+]);
 
 function gasUrl(): string | null {
   const fromEnv = process.env.NEXT_PUBLIC_GAS_URL;
   if (fromEnv && fromEnv.trim()) return fromEnv.trim();
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("pt-ryuta-gas-url");
-    if (saved && saved.trim()) return saved.trim();
-    // 承認済みの本番GASをデフォルト利用（未設定時）
+    if (saved && saved.trim()) {
+      const url = saved.trim();
+      // 古いデプロイ（更新APIなし）は自動で差し替え
+      if (LEGACY_GAS_URLS.has(url)) {
+        localStorage.setItem("pt-ryuta-gas-url", SUGGESTED_GAS_URL);
+        return SUGGESTED_GAS_URL;
+      }
+      return url;
+    }
     return SUGGESTED_GAS_URL;
   }
   return SUGGESTED_GAS_URL;
@@ -130,75 +148,128 @@ export async function verifyTrainer(pin: string): Promise<boolean> {
 }
 
 export async function verifyClient(code: string): Promise<Client | null> {
+  const memberNo = normalizeMemberNo(code);
+  if (!memberNo) return null;
   if (!gasUrl()) {
-    return readDb().clients.find((c) => c.code === code && c.active) || null;
+    return (
+      readDb().clients.find(
+        (c) => normalizeMemberNo(c.code) === memberNo && c.active
+      ) || null
+    );
   }
-  const data = await callGas<{ client: Client | null }>({ action: "verifyClient", code });
+  const data = await callGas<{ client: Client | null }>({
+    action: "verifyClient",
+    code: memberNo,
+  });
   return data.client || null;
 }
 
-export async function listClients(): Promise<Client[]> {
+export async function updateNickname(input: {
+  code: string;
+  nickname: string;
+}): Promise<Client> {
+  const memberNo = normalizeMemberNo(input.code);
+  const nickname = String(input.nickname || "").trim();
+  if (!memberNo || !nickname) {
+    throw new Error("会員番号とニックネームを入力してください");
+  }
+  if (!gasUrl()) {
+    const db = readDb();
+    const idx = db.clients.findIndex(
+      (c) => normalizeMemberNo(c.code) === memberNo && c.active
+    );
+    if (idx < 0) throw new Error("会員番号が違います");
+    db.clients[idx] = { ...db.clients[idx], nickname };
+    writeDb(db);
+    return db.clients[idx];
+  }
+  const data = await callGas<{ client: Client }>({
+    action: "updateNickname",
+    code: memberNo,
+    nickname,
+  });
+  return data.client;
+}
+
+export async function listClients(pin: string): Promise<Client[]> {
   if (!gasUrl()) return readDb().clients.filter((c) => c.active);
-  const data = await callGas<{ clients: Client[] }>({ action: "listClients" });
+  const data = await callGas<{ clients: Client[] }>({
+    action: "listClients",
+    pin,
+  });
   return data.clients || [];
 }
 
 export async function upsertClient(input: {
   id?: string;
   name: string;
-  code?: string;
+  code: string;
   goal?: string;
   notes?: string;
 }): Promise<Client> {
-  if (!gasUrl()) {
-    const db = readDb();
-    if (input.id) {
-      const idx = db.clients.findIndex((c) => c.id === input.id);
-      if (idx < 0) throw new Error("client not found");
-      db.clients[idx] = {
-        ...db.clients[idx],
-        name: input.name,
-        code: input.code || db.clients[idx].code,
-        goal: input.goal ?? db.clients[idx].goal,
-        notes: input.notes ?? db.clients[idx].notes,
-      };
-      writeDb(db);
-      return db.clients[idx];
-    }
-    const client: Client = {
-      id: uid("cli"),
-      name: input.name,
-      code: input.code || String(Math.floor(Math.random() * 9000) + 1000),
-      goal: input.goal || "",
-      notes: input.notes || "",
-      createdAt: new Date().toISOString(),
-      active: true,
-    };
-    db.clients.push(client);
-    writeDb(db);
-    return client;
-  }
-  const data = await callGas<{ client: Client }>({ action: "upsertClient", ...input });
-  return data.client;
+  void input;
+  throw new Error("会員の追加・変更はスプレッドシート「会員マスタ」からのみ行えます");
 }
 
-export async function listWorkouts(opts?: {
+export async function adminSyncMembers(input: {
+  pin: string;
+  members: {
+    name: string;
+    code: string;
+    nickname?: string;
+    goal?: string;
+    notes?: string;
+  }[];
+}): Promise<Client[]> {
+  if (!gasUrl()) {
+    throw new Error("スプレッドシート未接続のため同期できません");
+  }
+  const data = await callGas<{ clients: Client[] }>({
+    action: "adminSyncMembers",
+    ...input,
+  });
+  return data.clients || [];
+}
+
+export async function listWorkouts(opts: {
   clientId?: string;
   mode?: WorkoutMode;
   limit?: number;
+  /** 会員認証（会員番号） */
+  code?: string;
+  pin?: string;
 }): Promise<Workout[]> {
   if (!gasUrl()) {
     let rows = [...readDb().workouts].reverse();
-    if (opts?.clientId) rows = rows.filter((w) => w.clientId === opts.clientId);
-    if (opts?.mode) rows = rows.filter((w) => w.mode === opts.mode);
-    if (opts?.limit) rows = rows.slice(0, opts.limit);
+    if (opts.clientId) rows = rows.filter((w) => w.clientId === opts.clientId);
+    if (opts.mode) rows = rows.filter((w) => w.mode === opts.mode);
+    if (opts.limit) rows = rows.slice(0, opts.limit);
     return rows;
   }
   const data = await callGas<{ workouts: Workout[] }>({
     action: "listWorkouts",
-    ...opts,
+    clientId: opts.clientId,
+    mode: opts.mode,
+    limit: opts.limit,
+    code: opts.code,
+    pin: opts.pin,
   });
-  return data.workouts || [];
+  return (data.workouts || []).map((w) => ({
+    ...w,
+    date: normalizeWorkoutDate(w.date),
+    minutes: w.minutes ?? null,
+  }));
+}
+
+function normalizeWorkoutDate(value: string): string {
+  const raw = String(value || "");
+  const iso = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+  }
+  return raw;
 }
 
 export async function addWorkouts(input: {
@@ -208,11 +279,14 @@ export async function addWorkouts(input: {
   actor: string;
   date?: string;
   items: WorkoutDraft[];
+  code?: string;
+  pin?: string;
 }): Promise<Workout[]> {
   const payloadItems = input.items
     .filter((i) => i.exercise.trim())
     .map((i) => ({
       exercise: i.exercise.trim(),
+      minutes: i.minutes === "" ? null : Number(i.minutes),
       weight: i.weight === "" ? null : Number(i.weight),
       reps: i.reps === "" ? null : Number(i.reps),
       sets: i.sets === "" ? null : Number(i.sets),
@@ -232,6 +306,7 @@ export async function addWorkouts(input: {
       clientName: input.clientName,
       mode: input.mode,
       exercise: item.exercise,
+      minutes: item.minutes,
       weight: item.weight,
       reps: item.reps,
       sets: item.sets,
@@ -257,8 +332,69 @@ export async function addWorkouts(input: {
     actor: input.actor,
     date: input.date || today(),
     items: payloadItems,
+    code: input.code,
+    pin: input.pin,
   });
   return data.workouts || [];
+}
+
+export async function updateWorkout(input: {
+  id: string;
+  exercise?: string;
+  minutes?: number | null;
+  weight?: number | null;
+  reps?: number | null;
+  sets?: number | null;
+  rpe?: number | null;
+  memo?: string;
+  date?: string;
+  code?: string;
+  pin?: string;
+}): Promise<Workout> {
+  if (!gasUrl()) {
+    const db = readDb();
+    const idx = db.workouts.findIndex((w) => w.id === input.id);
+    if (idx < 0) throw new Error("workout not found");
+    db.workouts[idx] = {
+      ...db.workouts[idx],
+      ...(input.exercise !== undefined ? { exercise: input.exercise } : {}),
+      ...(input.minutes !== undefined ? { minutes: input.minutes } : {}),
+      ...(input.weight !== undefined ? { weight: input.weight } : {}),
+      ...(input.reps !== undefined ? { reps: input.reps } : {}),
+      ...(input.sets !== undefined ? { sets: input.sets } : {}),
+      ...(input.rpe !== undefined ? { rpe: input.rpe } : {}),
+      ...(input.memo !== undefined ? { memo: input.memo } : {}),
+      ...(input.date !== undefined ? { date: input.date } : {}),
+    };
+    writeDb(db);
+    return db.workouts[idx];
+  }
+  const data = await callGas<{ workout: Workout }>({
+    action: "updateWorkout",
+    ...input,
+  });
+  return data.workout;
+}
+
+export async function deleteWorkouts(
+  ids: string[],
+  auth?: { code?: string; pin?: string }
+): Promise<number> {
+  if (!ids.length) return 0;
+  if (!gasUrl()) {
+    const db = readDb();
+    const before = db.workouts.length;
+    db.workouts = db.workouts.filter((w) => !ids.includes(w.id));
+    writeDb(db);
+    return before - db.workouts.length;
+  }
+  const data = await callGas<{ deleted: number }>({
+    action: "deleteWorkouts",
+    ids,
+    code: auth?.code,
+    pin: auth?.pin,
+  });
+  return data.deleted || 0;
 }
 
 export async function listExercises(): Promise<Exercise[]> {
@@ -267,12 +403,19 @@ export async function listExercises(): Promise<Exercise[]> {
   return data.exercises || [];
 }
 
-export async function listMenus(clientId?: string): Promise<Menu[]> {
+export async function listMenus(
+  pin: string,
+  clientId?: string
+): Promise<Menu[]> {
   if (!gasUrl()) {
     const rows = [...readDb().menus].reverse();
     return clientId ? rows.filter((m) => m.clientId === clientId) : rows;
   }
-  const data = await callGas<{ menus: Menu[] }>({ action: "listMenus", clientId });
+  const data = await callGas<{ menus: Menu[] }>({
+    action: "listMenus",
+    pin,
+    clientId,
+  });
   return data.menus || [];
 }
 
@@ -283,6 +426,7 @@ export async function upsertMenu(input: {
   title: string;
   items: MenuItem[];
   notes?: string;
+  pin: string;
 }): Promise<Menu> {
   if (!gasUrl()) {
     const db = readDb();
@@ -329,5 +473,13 @@ export async function getMenuByToken(token: string): Promise<Menu> {
 }
 
 export function emptyDraft(): WorkoutDraft {
-  return { exercise: "", weight: "", reps: "", sets: "3", rpe: "", memo: "" };
+  return {
+    exercise: "",
+    minutes: "",
+    weight: "",
+    reps: "",
+    sets: "3",
+    rpe: "",
+    memo: "",
+  };
 }

@@ -12,5 +12,5 @@ export default function MemberDeepLinkPage() {
     router.replace("/");
   }, [router]);
 
-  return <LoadingScreen label="RY-LOG" />;
+  return <LoadingScreen label="workout-log" />;
 }

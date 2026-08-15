@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   BODY_PARTS,
   EXERCISE_CATALOG,
+  isLineIcon,
   machineImageSrc,
   type AreaGroup,
   type BodyPart,
@@ -123,62 +124,46 @@ export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
       </div>
 
       <div className={showMachineGrid ? "picker-list machine-mode" : "picker-list"}>
-        {grouped.map((group) => {
-          const withImage = group.items.filter((i) => i.imageId);
-          const textOnly = group.items.filter((i) => !i.imageId);
-          return (
-            <div key={group.part} className="picker-group">
-              {!part ? (
-                <p className="picker-group-title">
-                  <span>{PART_META[group.part].mark}</span>
-                  {PART_META[group.part].label}
-                </p>
-              ) : null}
+        {grouped.map((group) => (
+          <div key={group.part} className="picker-group">
+            {!part ? (
+              <p className="picker-group-title">
+                <span>{PART_META[group.part].mark}</span>
+                {PART_META[group.part].label}
+              </p>
+            ) : null}
 
-              {withImage.length ? (
-                <div className="machine-grid">
-                  {withImage.map((item) => {
-                    const src = machineImageSrc(item, "sm");
-                    const on = draft.exercise === item.name;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={on ? "machine-card on" : "machine-card"}
-                        onClick={() => selectItem(item)}
-                      >
-                        <span className="machine-card-media">
-                          {src ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={src} alt="" loading="lazy" />
-                          ) : null}
-                        </span>
-                        <span className="machine-card-name">{item.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-
-              {textOnly.length ? (
-                <div className="picker-exercises">
-                  {textOnly.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={
-                        draft.exercise === item.name ? "ex-chip on" : "ex-chip"
-                      }
-                      onClick={() => selectItem(item)}
-                    >
-                      {item.name}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+            <div className="machine-grid">
+              {group.items.map((item) => {
+                const src = machineImageSrc(item, "sm");
+                const on = draft.exercise === item.name;
+                const icon = isLineIcon(item);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={[
+                      "machine-card",
+                      on ? "on" : "",
+                      icon ? "icon" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => selectItem(item)}
+                  >
+                    <span className="machine-card-media">
+                      {src ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={src} alt="" loading="lazy" />
+                      ) : null}
+                    </span>
+                    <span className="machine-card-name">{item.name}</span>
+                  </button>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
         {!filtered.length ? (
           <span className="muted tiny">該当する種目がありません</span>
         ) : null}

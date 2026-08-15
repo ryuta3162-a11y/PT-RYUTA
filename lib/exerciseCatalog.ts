@@ -192,23 +192,23 @@ export const MACHINE_ITEMS: CatalogItem[] = [
 
 /** フリーウェイト（重量×回数） */
 export const FREEWEIGHT_ITEMS: CatalogItem[] = [
-  { id: "f_squat", name: "スクワット", group: "freeweight", bodyPart: "脚", record: "weight_reps" },
-  { id: "f_deadlift", name: "デッドリフト", group: "freeweight", bodyPart: "背中", record: "weight_reps" },
-  { id: "f_rdl", name: "RDL", group: "freeweight", bodyPart: "脚", record: "weight_reps" },
-  { id: "f_bench", name: "ベンチプレス", group: "freeweight", bodyPart: "胸", record: "weight_reps" },
-  { id: "f_ohp", name: "オーバーヘッドプレス", group: "freeweight", bodyPart: "肩", record: "weight_reps" },
-  { id: "f_smith_squat", name: "スミススクワット", group: "freeweight", bodyPart: "脚", record: "weight_reps" },
-  { id: "f_incline_press", name: "インクラインプレス", group: "freeweight", bodyPart: "胸", record: "weight_reps" },
-  { id: "f_db_press", name: "ダンベルプレス", group: "freeweight", bodyPart: "胸", record: "weight_reps" },
-  { id: "f_db_shoulder", name: "ダンベルショルダープレス", group: "freeweight", bodyPart: "肩", record: "weight_reps" },
-  { id: "f_db_curl", name: "ダンベルカール", group: "freeweight", bodyPart: "腕", record: "weight_reps" },
-  { id: "f_side_raise", name: "サイドレイズ", group: "freeweight", bodyPart: "肩", record: "weight_reps" },
-  { id: "f_incline_curl", name: "インクラインカール", group: "freeweight", bodyPart: "腕", record: "weight_reps" },
-  { id: "f_pushdown", name: "プッシュダウン", group: "freeweight", bodyPart: "腕", record: "weight_reps" },
-  { id: "f_rope_pressdown", name: "ローププレスダウン", group: "freeweight", bodyPart: "腕", record: "weight_reps" },
-  { id: "f_cable_curl", name: "ケーブルカール", group: "freeweight", bodyPart: "腕", record: "weight_reps" },
-  { id: "f_cable_side", name: "ケーブルサイドレイズ", group: "freeweight", bodyPart: "肩", record: "weight_reps" },
-  { id: "f_seated_row", name: "シーテッドロー", group: "freeweight", bodyPart: "背中", record: "weight_reps" },
+  { id: "f_squat", name: "スクワット", group: "freeweight", bodyPart: "脚", record: "weight_reps", imageId: "fw_squat" },
+  { id: "f_deadlift", name: "デッドリフト", group: "freeweight", bodyPart: "背中", record: "weight_reps", imageId: "fw_deadlift" },
+  { id: "f_rdl", name: "RDL", group: "freeweight", bodyPart: "脚", record: "weight_reps", imageId: "fw_deadlift" },
+  { id: "f_bench", name: "ベンチプレス", group: "freeweight", bodyPart: "胸", record: "weight_reps", imageId: "fw_bench" },
+  { id: "f_ohp", name: "オーバーヘッドプレス", group: "freeweight", bodyPart: "肩", record: "weight_reps", imageId: "fw_ohp" },
+  { id: "f_smith_squat", name: "スミススクワット", group: "freeweight", bodyPart: "脚", record: "weight_reps", imageId: "fw_smith" },
+  { id: "f_incline_press", name: "インクラインプレス", group: "freeweight", bodyPart: "胸", record: "weight_reps", imageId: "fw_bench" },
+  { id: "f_db_press", name: "ダンベルプレス", group: "freeweight", bodyPart: "胸", record: "weight_reps", imageId: "fw_dumbbell" },
+  { id: "f_db_shoulder", name: "ダンベルショルダープレス", group: "freeweight", bodyPart: "肩", record: "weight_reps", imageId: "fw_dumbbell" },
+  { id: "f_db_curl", name: "ダンベルカール", group: "freeweight", bodyPart: "腕", record: "weight_reps", imageId: "fw_dumbbell" },
+  { id: "f_side_raise", name: "サイドレイズ", group: "freeweight", bodyPart: "肩", record: "weight_reps", imageId: "fw_dumbbell" },
+  { id: "f_incline_curl", name: "インクラインカール", group: "freeweight", bodyPart: "腕", record: "weight_reps", imageId: "fw_dumbbell" },
+  { id: "f_pushdown", name: "プッシュダウン", group: "freeweight", bodyPart: "腕", record: "weight_reps", imageId: "fw_cable" },
+  { id: "f_rope_pressdown", name: "ローププレスダウン", group: "freeweight", bodyPart: "腕", record: "weight_reps", imageId: "fw_cable" },
+  { id: "f_cable_curl", name: "ケーブルカール", group: "freeweight", bodyPart: "腕", record: "weight_reps", imageId: "fw_cable" },
+  { id: "f_cable_side", name: "ケーブルサイドレイズ", group: "freeweight", bodyPart: "肩", record: "weight_reps", imageId: "fw_cable" },
+  { id: "f_seated_row", name: "シーテッドロー", group: "freeweight", bodyPart: "背中", record: "weight_reps", imageId: "fw_row" },
 ];
 
 export const EXERCISE_CATALOG: CatalogItem[] = [
@@ -226,10 +226,15 @@ export function catalogByGroup(group: AreaGroup): CatalogItem[] {
 }
 
 export function machineImageSrc(
-  item: Pick<CatalogItem, "imageId"> | undefined | null,
+  item: Pick<CatalogItem, "imageId" | "group"> | undefined | null,
   size: "sm" | "md" = "md"
 ): string | null {
   const id = item?.imageId;
   if (!id) return null;
-  return size === "sm" ? `/machines/${id}-sm.webp` : `/machines/${id}.webp`;
+  const file = size === "sm" ? `${id}-sm.webp` : `${id}.webp`;
+  return `/machines/${file}?v=2`;
+}
+
+export function isLineIcon(item: Pick<CatalogItem, "imageId" | "group"> | undefined | null): boolean {
+  return Boolean(item?.imageId?.startsWith("fw_"));
 }

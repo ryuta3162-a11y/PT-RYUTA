@@ -1,10 +1,11 @@
-/* RY-LOG service worker */
-const CACHE = "ry-log-v2";
+/* workout-log service worker */
+const CACHE = "wl-v2";
 const PRECACHE = [
   "/",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/apple-touch-icon.png",
+  "/favicon.ico",
 ];
 
 async function notify(progress, status) {
@@ -13,7 +14,7 @@ async function notify(progress, status) {
     includeUncontrolled: true,
   });
   for (const client of clientsList) {
-    client.postMessage({ type: "RY_LOG_PROGRESS", progress, status });
+    client.postMessage({ type: "WL_PROGRESS", progress, status });
   }
 }
 

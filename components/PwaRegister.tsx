@@ -40,7 +40,7 @@ export function PwaRegister() {
 
     const onMessage = (event: MessageEvent) => {
       const data = event.data;
-      if (!data || data.type !== "RY_LOG_PROGRESS") return;
+      if (!data || data.type !== "WL_PROGRESS") return;
       setProgress(Number(data.progress) || 0);
       setStatus(String(data.status || "準備中"));
     };
@@ -124,12 +124,12 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner done">
         <div className="pwa-banner-icon" aria-hidden>
-          RY
+          WL
         </div>
         <div style={{ flex: 1 }}>
           <strong>インストールが完了しました</strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
-            ホーム画面の RY-LOG から起動できます
+            ホーム画面の workout-log から起動できます
           </p>
           <div className="pwa-progress">
             <div className="pwa-progress-bar" style={{ width: "100%" }} />
@@ -143,14 +143,14 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner">
         <div className="pwa-banner-icon" aria-hidden>
-          RY
+          WL
         </div>
         <div style={{ flex: 1 }}>
           <strong>
             {status} {progress}%
           </strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
-            RY-LOG を準備しています
+            workout-log を準備しています
           </p>
           <div className="pwa-progress">
             <div className="pwa-progress-bar" style={{ width: `${progress}%` }} />
@@ -164,10 +164,10 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner">
         <div className="pwa-banner-icon" aria-hidden>
-          RY
+          WL
         </div>
         <div style={{ flex: 1 }}>
-          <strong>RY-LOG を追加</strong>
+          <strong>workout-log を追加</strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
             ホーム画面にインストール
           </p>
@@ -183,10 +183,10 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner">
         <div className="pwa-banner-icon" aria-hidden>
-          RY
+          WL
         </div>
         <div style={{ flex: 1 }}>
-          <strong>RY-LOG を追加</strong>
+          <strong>workout-log を追加</strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
             共有 →「ホーム画面に追加」
           </p>

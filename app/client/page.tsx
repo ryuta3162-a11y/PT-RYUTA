@@ -10,5 +10,5 @@ export default function ClientRedirectPage() {
   useEffect(() => {
     router.replace("/");
   }, [router]);
-  return <LoadingScreen label="RY-LOG" />;
+  return <LoadingScreen label="workout-log" />;
 }

@@ -18,7 +18,7 @@ export function LoadingScreen({
   const body = (
     <div className="loader" role="status" aria-live="polite" aria-busy="true">
       <div className="loader-mark">
-        <span>RY</span>
+        <span>WL</span>
         <i className="loader-ring" />
       </div>
       <p className="loader-label">{label}</p>

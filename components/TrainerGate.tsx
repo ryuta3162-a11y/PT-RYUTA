@@ -60,7 +60,7 @@ export function TrainerGate({ children }: Props) {
         <div className="hero-gate">
           <div className="brand-block">
             <div className="brand-mark" aria-hidden>
-              RY
+              WL
             </div>
             <h1 className="brand" style={{ fontSize: "1.8rem" }}>
               Staff

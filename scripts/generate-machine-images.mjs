@@ -1,5 +1,6 @@
 /**
- * 経堂マシン写真（24KYODO-MACHINE）から RY-LOG 用 WebP を生成する。
+ * 経堂マシン写真（24KYODO-MACHINE）から WL 用 WebP を生成する。
+ * ラベル帯を切り、周囲に余白を付けてマシン全体が入るようにする。
  * Usage: node scripts/generate-machine-images.mjs [sourceDir]
  */
 import fs from "node:fs";
@@ -36,6 +37,27 @@ const MAP = {
   m_crunch: "resistance_6.jpg",
 };
 
+const WHITE = { r: 255, g: 255, b: 255, alpha: 1 };
+
+async function makeSized(extracted, width, height) {
+  // 内側に収めて余白を確保（マシン全体が切れないように）
+  const innerW = Math.round(width * 0.86);
+  const innerH = Math.round(height * 0.86);
+  const fitted = await sharp(extracted)
+    .resize(innerW, innerH, { fit: "inside", background: WHITE })
+    .toBuffer();
+  return sharp(fitted)
+    .extend({
+      top: Math.floor((height - innerH) / 2),
+      bottom: Math.ceil((height - innerH) / 2),
+      left: Math.floor((width - innerW) / 2),
+      right: Math.ceil((width - innerW) / 2),
+      background: WHITE,
+    })
+    .resize(width, height, { fit: "contain", background: WHITE })
+    .webp({ quality: 82 });
+}
+
 fs.mkdirSync(outDir, { recursive: true });
 
 for (const [id, file] of Object.entries(MAP)) {
@@ -47,24 +69,18 @@ for (const [id, file] of Object.entries(MAP)) {
   const meta = await sharp(src).metadata();
   const w = meta.width || 1080;
   const h = meta.height || 1440;
-  const cropH = Math.round(h * 0.86);
+  // 下部の「マシン名 ×台数」ラベルだけ落とす
+  const cropH = Math.round(h * 0.88);
   const extracted = await sharp(src)
     .extract({ left: 0, top: 0, width: w, height: cropH })
     .toBuffer();
-  await sharp(extracted)
-    .resize(360, 480, {
-      fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 1 },
-    })
-    .webp({ quality: 80 })
-    .toFile(path.join(outDir, `${id}.webp`));
-  await sharp(extracted)
-    .resize(120, 160, {
-      fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 1 },
-    })
-    .webp({ quality: 75 })
-    .toFile(path.join(outDir, `${id}-sm.webp`));
+
+  await (await makeSized(extracted, 360, 480)).toFile(
+    path.join(outDir, `${id}.webp`)
+  );
+  await (await makeSized(extracted, 180, 240)).toFile(
+    path.join(outDir, `${id}-sm.webp`)
+  );
   console.log(id);
 }
 

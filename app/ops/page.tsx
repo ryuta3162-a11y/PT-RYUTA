@@ -43,7 +43,7 @@ export default function OpsHomePage() {
     <main className="shell">
       <header className="app-header">
         <h1>ホーム</h1>
-        <div className="sub">RY-LOG Staff</div>
+        <div className="sub">workout-log Staff</div>
       </header>
 
       <div className="summary-row">

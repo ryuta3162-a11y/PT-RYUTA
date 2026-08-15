@@ -10,13 +10,13 @@ const noto = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "RY-LOG",
+  title: "workout-log",
   description: "トレーニング記録アプリ",
-  applicationName: "RY-LOG",
+  applicationName: "workout-log",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "RY-LOG",
+    title: "WL",
     statusBarStyle: "black-translucent",
   },
   icons: {

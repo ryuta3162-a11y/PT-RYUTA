@@ -9,6 +9,7 @@
     "lint": "eslint",
     "icons": "node scripts/generate-icons.mjs",
     "machines": "node scripts/generate-machine-images.mjs",
+    "fw-icons": "node scripts/generate-fw-icons.mjs",
     "gas:push": "cd gas && clasp push",
     "gas:open": "cd gas && clasp open",
     "gas:deploy": "cd gas && clasp deploy --description \"PT-RYUTA API\""

@@ -5,7 +5,7 @@ import { join } from "path";
 const outDir = join(process.cwd(), "public", "icons");
 mkdirSync(outDir, { recursive: true });
 
-/** 丸型 RY アイコン（黒地・白文字） */
+/** 丸型 WL アイコン（黒地・白文字） */
 function iconSvg(size, opts = {}) {
   const pad = opts.pad || 0;
   const inner = size - pad * 2;
@@ -20,7 +20,7 @@ function iconSvg(size, opts = {}) {
   <text x="${cx}" y="${textY}" text-anchor="middle"
     font-family="Arial Black, Helvetica, Arial, sans-serif" font-weight="900"
     font-size="${fontSize}" letter-spacing="${Math.round(fontSize * -0.04)}"
-    fill="#ffffff">RY</text>
+    fill="#ffffff">WL</text>
 </svg>`;
 }
 
@@ -44,3 +44,21 @@ await sharp(Buffer.from(iconSvg(180)))
   .png()
   .toFile(join(process.cwd(), "public", "apple-touch-icon.png"));
 console.log("wrote apple-touch-icon.png");
+
+await sharp(Buffer.from(iconSvg(32)))
+  .resize(32, 32)
+  .png()
+  .toFile(join(process.cwd(), "app", "favicon.ico"));
+await sharp(Buffer.from(iconSvg(32)))
+  .resize(32, 32)
+  .png()
+  .toFile(join(process.cwd(), "public", "favicon.ico"));
+await sharp(Buffer.from(iconSvg(512)))
+  .resize(512, 512)
+  .png()
+  .toFile(join(process.cwd(), "app", "icon.png"));
+await sharp(Buffer.from(iconSvg(180)))
+  .resize(180, 180)
+  .png()
+  .toFile(join(process.cwd(), "app", "apple-icon.png"));
+console.log("wrote favicon + app icons");

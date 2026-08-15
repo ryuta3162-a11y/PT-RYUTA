@@ -381,7 +381,7 @@ export default function MemberHomePage() {
   }
 
   if (!ready) {
-    return <LoadingScreen label="RY-LOG" />;
+    return <LoadingScreen label="workout-log" />;
   }
 
   if (!client) {
@@ -390,9 +390,9 @@ export default function MemberHomePage() {
         <div className="hero-gate">
           <div className="brand-block">
             <div className="brand-mark" aria-hidden>
-              RY
+              WL
             </div>
-            <h1 className="brand">RY-LOG</h1>
+            <h1 className="brand">workout-log</h1>
             <p className="lead">
               会員番号（10桁）でログインして、自分の記録だけを残します。
             </p>
@@ -432,7 +432,7 @@ export default function MemberHomePage() {
         <div className="hero-gate">
           <div className="brand-block">
             <div className="brand-mark" aria-hidden>
-              RY
+              WL
             </div>
             <h1 className="brand" style={{ fontSize: "1.8rem" }}>
               ニックネーム
@@ -502,10 +502,10 @@ export default function MemberHomePage() {
         <div className="session-rail member-hero-inner">
           <div className="member-hero-left">
             <div className="brand-mark sm" aria-hidden>
-              RY
+              WL
             </div>
             <div>
-              <p className="member-hero-brand">RY-LOG</p>
+              <p className="member-hero-brand">workout-log</p>
               <h1 className="member-hero-name">{shownName}</h1>
             </div>
           </div>

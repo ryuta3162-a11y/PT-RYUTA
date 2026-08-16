@@ -201,13 +201,114 @@ export async function updateNickname(input: {
   return data.client;
 }
 
+const CLIENTS_CACHE_KEY = "pt-ryuta-clients-cache-v1";
+const PT_SESSIONS_CACHE_KEY = "pt-ryuta-ptsess-cache-v1";
+const CACHE_MS = 45_000;
+
+type TimedCache<T> = { at: number; rows: T };
+
+let clientsMem: TimedCache<Client[]> | null = null;
+const ptSessionsMem = new Map<string, TimedCache<PtSession[]>>();
+
+function readTimedCache<T>(
+  key: string,
+  opts?: { allowStale?: boolean }
+): TimedCache<T> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TimedCache<T>;
+    if (!parsed || !Array.isArray(parsed.rows as unknown[])) return null;
+    if (!opts?.allowStale && Date.now() - parsed.at > CACHE_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeTimedCache<T>(key: string, rows: T) {
+  if (typeof window === "undefined") return;
+  const payload: TimedCache<T> = { at: Date.now(), rows };
+  try {
+    sessionStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function peekClients(): Client[] | null {
+  if (clientsMem?.rows?.length) return clientsMem.rows;
+  return (
+    readTimedCache<Client[]>(CLIENTS_CACHE_KEY, { allowStale: true })?.rows ||
+    null
+  );
+}
+
 export async function listClients(_pin?: string): Promise<Client[]> {
   if (!gasUrl()) return readDb().clients.filter((c) => c.active);
+  if (clientsMem && Date.now() - clientsMem.at < CACHE_MS) {
+    return clientsMem.rows;
+  }
+  const cached = readTimedCache<Client[]>(CLIENTS_CACHE_KEY, {
+    allowStale: true,
+  });
+  if (cached) {
+    clientsMem = cached;
+    void refreshClients_();
+    return cached.rows;
+  }
+  return refreshClients_();
+}
+
+async function refreshClients_(): Promise<Client[]> {
   const data = await callGas<{ clients: Client[] }>({
     action: "listClients",
     staff: true,
   });
-  return data.clients || [];
+  const rows = data.clients || [];
+  clientsMem = { at: Date.now(), rows };
+  writeTimedCache(CLIENTS_CACHE_KEY, rows);
+  return rows;
+}
+
+function writePtSessionsCache(clientId: string, rows: PtSession[]) {
+  const payload = { at: Date.now(), rows };
+  ptSessionsMem.set(clientId, payload);
+  writeTimedCache(`${PT_SESSIONS_CACHE_KEY}:${clientId}`, rows);
+}
+
+function putPtSessionInCache(session: PtSession) {
+  const prev = peekPtSessions(session.clientId) || [];
+  const idx = prev.findIndex((s) => s.id === session.id);
+  const rows = (
+    idx >= 0 ? prev.map((s, i) => (i === idx ? session : s)) : [...prev, session]
+  ).sort((a, b) => a.sessionNo - b.sessionNo);
+  writePtSessionsCache(session.clientId, rows);
+}
+
+function removePtSessionFromCache(id: string, clientId?: string) {
+  const keys = clientId
+    ? [clientId]
+    : Array.from(ptSessionsMem.keys());
+  for (const key of keys) {
+    const prev = peekPtSessions(key);
+    if (!prev) continue;
+    writePtSessionsCache(
+      key,
+      prev.filter((s) => s.id !== id)
+    );
+  }
+}
+
+export function peekPtSessions(clientId: string): PtSession[] | null {
+  const hit = ptSessionsMem.get(clientId);
+  if (hit?.rows) return hit.rows;
+  return (
+    readTimedCache<PtSession[]>(`${PT_SESSIONS_CACHE_KEY}:${clientId}`, {
+      allowStale: true,
+    })?.rows || null
+  );
 }
 
 export async function upsertClient(input: {
@@ -500,12 +601,29 @@ export async function listPtSessions(clientId: string): Promise<PtSession[]> {
       .filter((s) => s.clientId === clientId)
       .sort((a, b) => a.sessionNo - b.sessionNo);
   }
+  const mem = ptSessionsMem.get(clientId);
+  if (mem && Date.now() - mem.at < CACHE_MS) return mem.rows;
+  const cached = readTimedCache<PtSession[]>(
+    `${PT_SESSIONS_CACHE_KEY}:${clientId}`,
+    { allowStale: true }
+  );
+  if (cached) {
+    ptSessionsMem.set(clientId, cached);
+    void refreshPtSessions_(clientId);
+    return cached.rows;
+  }
+  return refreshPtSessions_(clientId);
+}
+
+async function refreshPtSessions_(clientId: string): Promise<PtSession[]> {
   const data = await callGas<{ sessions: PtSession[] }>({
     action: "listPtSessions",
     clientId,
     staff: true,
   });
-  return data.sessions || [];
+  const rows = data.sessions || [];
+  writePtSessionsCache(clientId, rows);
+  return rows;
 }
 
 export async function upsertPtSession(input: {
@@ -530,6 +648,7 @@ export async function upsertPtSession(input: {
         updatedAt: now,
       };
       writeLocalPtSessions(all);
+      putPtSessionInCache(all[idx]);
       return all[idx];
     }
     const maxNo = all
@@ -547,6 +666,7 @@ export async function upsertPtSession(input: {
     };
     all.push(created);
     writeLocalPtSessions(all);
+    putPtSessionInCache(created);
     return created;
   }
   const data = await callGas<{ session: PtSession }>({
@@ -554,15 +674,20 @@ export async function upsertPtSession(input: {
     ...input,
     staff: true,
   });
+  putPtSessionInCache(data.session);
   return data.session;
 }
 
-export async function deletePtSession(id: string): Promise<number> {
+export async function deletePtSession(
+  id: string,
+  clientId?: string
+): Promise<number> {
   if (!id) return 0;
   if (!gasUrl()) {
     const all = readLocalPtSessions();
     const next = all.filter((s) => s.id !== id);
     writeLocalPtSessions(next);
+    removePtSessionFromCache(id, clientId);
     return all.length - next.length;
   }
   const data = await callGas<{ deleted: number }>({
@@ -570,6 +695,7 @@ export async function deletePtSession(id: string): Promise<number> {
     id,
     staff: true,
   });
+  removePtSessionFromCache(id, clientId);
   return data.deleted || 0;
 }
 

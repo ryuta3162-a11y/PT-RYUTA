@@ -1642,6 +1642,10 @@ button.ex-ord {
   background: #f3f1f0;
 }
 
+.pta-app:has(.shell.member.session) {
+  background: var(--bg);
+}
+
 .shell.pta {
   display: flex;
   flex-direction: column;
@@ -1804,23 +1808,6 @@ button.ex-ord {
   flex: 1 1 auto;
 }
 
-.shell.pta .session-log-area,
-.shell.pta .session-log-area .log-board,
-.shell.pta .session-log-area .empty-diary {
-  flex: none;
-  min-height: 0;
-}
-
-.shell.pta .session-log-area .empty-diary {
-  display: block;
-  padding: 18px 16px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  color: #555;
-  text-align: left;
-}
-
 .pta-session-error {
   grid-column: 1 / -1;
 }
@@ -1846,7 +1833,7 @@ button.ex-ord {
 }
 
 .pta-session-memo textarea {
-  min-height: 88px;
+  min-height: 56px;
   font-size: 1rem;
 }
 
@@ -1855,22 +1842,6 @@ button.ex-ord {
   width: 100%;
   max-width: none;
   margin: 0;
-}
-
-.shell.pta .compose-card {
-  width: 100%;
-  padding: 16px;
-}
-
-.shell.pta .compose-head h2 {
-  font-size: 1rem;
-  letter-spacing: 0;
-  text-transform: none;
-  color: #111;
-}
-
-.shell.pta .group-pref-name {
-  font-size: 0.78rem;
 }
 
 .shell.pta .btn.primary {
@@ -1911,17 +1882,6 @@ button.ex-ord {
 
   .pta-hero-text h1 {
     font-size: 1.4rem;
-  }
-
-  .content.session-flow.pta-session-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
-    gap: 24px;
-    padding-top: 20px;
-  }
-
-  .pta-session-aside {
-    position: sticky;
-    top: 16px;
   }
 }
 
@@ -2268,20 +2228,19 @@ button.ex-ord {
 .drop-toggle {
   width: 100%;
   padding: 12px;
-  border: 2px solid #8b0000;
-  border-radius: 12px;
+  border: 1.5px dashed #111;
+  border-radius: var(--radius);
   background: #fff;
-  color: #8b0000;
+  color: #111;
   font: inherit;
   font-weight: 800;
+  font-size: 0.95rem;
   cursor: pointer;
 }
 
 .drop-toggle:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
-  border-color: #ccc;
-  color: #888;
 }
 
 .drop-rounds {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PtaHeader } from "@/components/PtaHeader";
-import { listClients, listPtSessions, upsertPtSession } from "@/lib/api";
+import { listClients, listPtSessions, peekClients, peekPtSessions, upsertPtSession } from "@/lib/api";
 import {
   clientRouteKey,
   findClientByRouteKey,
@@ -31,6 +31,15 @@ export default function PtaClientSessionsPage() {
   }
 
   useEffect(() => {
+    const cachedClients = peekClients();
+    const hit0 = cachedClients
+      ? findClientByRouteKey(cachedClients, clientId)
+      : null;
+    if (hit0 && isPtClient(hit0)) {
+      setClient(hit0);
+      const cached = peekPtSessions(clientRouteKey(hit0));
+      if (cached) setSessions(cached);
+    }
     void (async () => {
       try {
         const clients = await listClients();

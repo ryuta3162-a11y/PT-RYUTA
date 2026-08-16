@@ -396,8 +396,13 @@ export function QuickLogPanel({
                 <button
                   type="button"
                   className="drop-toggle"
-                  disabled={busy || setLines.filter(lineReady).length < 2}
-                  onClick={() => setDropMode(true)}
+                  disabled={busy}
+                  onClick={() => {
+                    setDropMode(true);
+                    setSetLines((rows) =>
+                      rows.length >= 2 ? rows : [...rows, emptySet(rows[0])]
+                    );
+                  }}
                 >
                   ドロップセットにする
                 </button>

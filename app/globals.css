@@ -1895,6 +1895,8 @@ button.ex-ord {
   gap: 12px;
   margin-bottom: 4px;
 }
+
+.pta-picker {
   display: grid;
   gap: 8px;
   margin-bottom: 12px;

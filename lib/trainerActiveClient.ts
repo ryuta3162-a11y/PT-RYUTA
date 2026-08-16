@@ -4,6 +4,8 @@ export type ActiveTrainerClient = {
   id: string;
   name: string;
   code: string;
+  /** 会員マスタのメモ（PT判定用） */
+  notes?: string;
 };
 
 export function loadActiveTrainerClient(): ActiveTrainerClient | null {

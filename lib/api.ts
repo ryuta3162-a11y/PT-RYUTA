@@ -5,6 +5,8 @@ import type {
   Exercise,
   Menu,
   MenuItem,
+  PtSession,
+  PtSessionExercise,
   Workout,
   WorkoutDraft,
   WorkoutMode,
@@ -64,25 +66,33 @@ function writeDb(db: LocalDb) {
 }
 
 export const SUGGESTED_GAS_URL =
-  "https://script.google.com/macros/s/AKfycbzrAS_BeNdPbyYQSmB753FnAomjXGwJoZ-UxZ9B-_KxpRW_bja4hnjhUpmh4PznLsrD/exec";
+  "https://script.google.com/macros/s/AKfycbwgrI8lgA7vFyib3X1BXjxh5OReGsaB3WjkHIukVADv2XsBgllzb1qQF-YroV-H2zU/exec";
 
 const LEGACY_GAS_URLS = new Set([
+  "https://script.google.com/macros/s/AKfycbw9l3LoevvbSrnQvLgGTee1yYZkpjzHFNwYAqsV0lO5TGH5T3Yp26ri4qlaFD6E6GWU/exec",
+  "https://script.google.com/macros/s/AKfycbxoz9ojipxiehnyvV43R-SR_KHh9Zttb0AOL6PFPljIzTI9ZQZ0-7oJSQq5Q6xbTQdf/exec",
+  "https://script.google.com/macros/s/AKfycbzYeoROgrLEx2Vhs2C2XQRlwm-I6-6gOCQ4sSv_xYKV4jr7Eo240ZHGBfkAFSHWcRNs/exec",
+  "https://script.google.com/macros/s/AKfycbzrAS_BeNdPbyYQSmB753FnAomjXGwJoZ-UxZ9B-_KxpRW_bja4hnjhUpmh4PznLsrD/exec",
   "https://script.google.com/macros/s/AKfycbzBzUwaex0f5VnNBRoaHUCuEdIJWuxSDHH54aDZnHkGCx7HbX5U-ArilqBN-db4i486/exec",
   "https://script.google.com/macros/s/AKfycbwRjyl8tCXDHyqRRLSvyLTQtZZJ5b8Gv6wZlWGmugqYwh_AZ6n7p-b2wbj_6IjfTxrX/exec",
   "https://script.google.com/macros/s/AKfycbyQTSm0SHj-efIfavP16nnTBF_Nw9JCPqjv_2vtBsQjyGssMAefZXA7h15a19D1hoFD/exec",
 ]);
 
+function resolveGasUrl(raw: string): string {
+  const url = raw.trim();
+  if (LEGACY_GAS_URLS.has(url)) return SUGGESTED_GAS_URL;
+  return url;
+}
+
 function gasUrl(): string | null {
   const fromEnv = process.env.NEXT_PUBLIC_GAS_URL;
-  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  if (fromEnv && fromEnv.trim()) return resolveGasUrl(fromEnv);
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("pt-ryuta-gas-url");
     if (saved && saved.trim()) {
-      const url = saved.trim();
-      // 古いデプロイ（更新APIなし）は自動で差し替え
-      if (LEGACY_GAS_URLS.has(url)) {
-        localStorage.setItem("pt-ryuta-gas-url", SUGGESTED_GAS_URL);
-        return SUGGESTED_GAS_URL;
+      const url = resolveGasUrl(saved);
+      if (url !== saved.trim()) {
+        localStorage.setItem("pt-ryuta-gas-url", url);
       }
       return url;
     }
@@ -191,11 +201,11 @@ export async function updateNickname(input: {
   return data.client;
 }
 
-export async function listClients(pin: string): Promise<Client[]> {
+export async function listClients(_pin?: string): Promise<Client[]> {
   if (!gasUrl()) return readDb().clients.filter((c) => c.active);
   const data = await callGas<{ clients: Client[] }>({
     action: "listClients",
-    pin,
+    staff: true,
   });
   return data.clients || [];
 }
@@ -238,6 +248,8 @@ export async function listWorkouts(opts: {
   /** 会員認証（会員番号） */
   code?: string;
   pin?: string;
+  /** スタッフ画面（/ops）からの操作 */
+  staff?: boolean;
 }): Promise<Workout[]> {
   if (!gasUrl()) {
     let rows = [...readDb().workouts].reverse();
@@ -253,6 +265,7 @@ export async function listWorkouts(opts: {
     limit: opts.limit,
     code: opts.code,
     pin: opts.pin,
+    staff: opts.staff,
   });
   return (data.workouts || []).map((w) => ({
     ...w,
@@ -281,6 +294,7 @@ export async function addWorkouts(input: {
   items: WorkoutDraft[];
   code?: string;
   pin?: string;
+  staff?: boolean;
 }): Promise<Workout[]> {
   const payloadItems = input.items
     .filter((i) => i.exercise.trim())
@@ -334,6 +348,7 @@ export async function addWorkouts(input: {
     items: payloadItems,
     code: input.code,
     pin: input.pin,
+    staff: input.staff,
   });
   return data.workouts || [];
 }
@@ -350,6 +365,7 @@ export async function updateWorkout(input: {
   date?: string;
   code?: string;
   pin?: string;
+  staff?: boolean;
 }): Promise<Workout> {
   if (!gasUrl()) {
     const db = readDb();
@@ -378,7 +394,7 @@ export async function updateWorkout(input: {
 
 export async function deleteWorkouts(
   ids: string[],
-  auth?: { code?: string; pin?: string }
+  auth?: { code?: string; pin?: string; staff?: boolean }
 ): Promise<number> {
   if (!ids.length) return 0;
   if (!gasUrl()) {
@@ -393,6 +409,7 @@ export async function deleteWorkouts(
     ids,
     code: auth?.code,
     pin: auth?.pin,
+    staff: auth?.staff,
   });
   return data.deleted || 0;
 }
@@ -404,7 +421,7 @@ export async function listExercises(): Promise<Exercise[]> {
 }
 
 export async function listMenus(
-  pin: string,
+  _pin?: string,
   clientId?: string
 ): Promise<Menu[]> {
   if (!gasUrl()) {
@@ -413,7 +430,7 @@ export async function listMenus(
   }
   const data = await callGas<{ menus: Menu[] }>({
     action: "listMenus",
-    pin,
+    staff: true,
     clientId,
   });
   return data.menus || [];
@@ -426,7 +443,7 @@ export async function upsertMenu(input: {
   title: string;
   items: MenuItem[];
   notes?: string;
-  pin: string;
+  pin?: string;
 }): Promise<Menu> {
   if (!gasUrl()) {
     const db = readDb();
@@ -458,7 +475,11 @@ export async function upsertMenu(input: {
     writeDb(db);
     return menu;
   }
-  const data = await callGas<{ menu: Menu }>({ action: "upsertMenu", ...input });
+  const data = await callGas<{ menu: Menu }>({
+    action: "upsertMenu",
+    ...input,
+    staff: true,
+  });
   return data.menu;
 }
 
@@ -470,6 +491,104 @@ export async function getMenuByToken(token: string): Promise<Menu> {
   }
   const data = await callGas<{ menu: Menu }>({ action: "getMenuByToken", token });
   return data.menu;
+}
+
+export async function listPtSessions(clientId: string): Promise<PtSession[]> {
+  if (!clientId) return [];
+  if (!gasUrl()) {
+    return readLocalPtSessions()
+      .filter((s) => s.clientId === clientId)
+      .sort((a, b) => a.sessionNo - b.sessionNo);
+  }
+  const data = await callGas<{ sessions: PtSession[] }>({
+    action: "listPtSessions",
+    clientId,
+    staff: true,
+  });
+  return data.sessions || [];
+}
+
+export async function upsertPtSession(input: {
+  id?: string;
+  clientId: string;
+  clientName: string;
+  sessionNo?: number;
+  exercises: PtSessionExercise[];
+  memo: string;
+}): Promise<PtSession> {
+  if (!gasUrl()) {
+    const all = readLocalPtSessions();
+    const now = new Date().toISOString();
+    if (input.id) {
+      const idx = all.findIndex((s) => s.id === input.id);
+      if (idx < 0) throw new Error("session not found");
+      all[idx] = {
+        ...all[idx],
+        ...input,
+        exercises: input.exercises,
+        memo: input.memo,
+        updatedAt: now,
+      };
+      writeLocalPtSessions(all);
+      return all[idx];
+    }
+    const maxNo = all
+      .filter((s) => s.clientId === input.clientId)
+      .reduce((m, s) => Math.max(m, s.sessionNo), 0);
+    const created: PtSession = {
+      id: uid("pts"),
+      clientId: input.clientId,
+      clientName: input.clientName,
+      sessionNo: input.sessionNo || maxNo + 1,
+      exercises: input.exercises,
+      memo: input.memo,
+      createdAt: now,
+      updatedAt: now,
+    };
+    all.push(created);
+    writeLocalPtSessions(all);
+    return created;
+  }
+  const data = await callGas<{ session: PtSession }>({
+    action: "upsertPtSession",
+    ...input,
+    staff: true,
+  });
+  return data.session;
+}
+
+export async function deletePtSession(id: string): Promise<number> {
+  if (!id) return 0;
+  if (!gasUrl()) {
+    const all = readLocalPtSessions();
+    const next = all.filter((s) => s.id !== id);
+    writeLocalPtSessions(next);
+    return all.length - next.length;
+  }
+  const data = await callGas<{ deleted: number }>({
+    action: "deletePtSession",
+    id,
+    staff: true,
+  });
+  return data.deleted || 0;
+}
+
+const PT_SESSION_KEY = "pt-ryuta-pt-sessions-v1";
+
+function readLocalPtSessions(): PtSession[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PT_SESSION_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as PtSession[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalPtSessions(rows: PtSession[]) {
+  localStorage.setItem(PT_SESSION_KEY, JSON.stringify(rows));
 }
 
 export function emptyDraft(): WorkoutDraft {

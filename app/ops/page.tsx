@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TrainerNav } from "@/components/AppChrome";
 import { listClients, listWorkouts } from "@/lib/api";
-import { loadStaffPin } from "@/lib/staffAuth";
+import {
+  isPtClient,
+  recordPathForClient,
+  toActiveClient,
+} from "@/lib/clientKind";
 import { saveActiveTrainerClient } from "@/lib/trainerActiveClient";
 import type { Client } from "@/lib/types";
 
@@ -18,10 +22,9 @@ export default function OpsHomePage() {
   useEffect(() => {
     void (async () => {
       try {
-        const pin = loadStaffPin();
         const [c, w] = await Promise.all([
-          listClients(pin),
-          listWorkouts({ pin, limit: 100 }),
+          listClients(),
+          listWorkouts({ staff: true, limit: 100 }),
         ]);
         setClients(c);
         const today = new Date().toLocaleDateString("sv-SE", {
@@ -34,16 +37,22 @@ export default function OpsHomePage() {
     })();
   }, []);
 
+  const ptClients = useMemo(() => clients.filter(isPtClient), [clients]);
+  const logClients = useMemo(
+    () => clients.filter((c) => !isPtClient(c)),
+    [clients]
+  );
+
   function startRecord(c: Client) {
-    saveActiveTrainerClient({ id: c.id, name: c.name, code: c.code });
-    router.push("/ops/session");
+    saveActiveTrainerClient(toActiveClient(c));
+    router.push(recordPathForClient(c));
   }
 
   return (
     <main className="shell">
       <header className="app-header">
         <h1>ホーム</h1>
-        <div className="sub">workout-log Staff</div>
+        <div className="sub">work-admin</div>
       </header>
 
       <div className="summary-row">
@@ -52,12 +61,12 @@ export default function OpsHomePage() {
           <div className="lbl">会員</div>
         </div>
         <div className="summary-card">
-          <div className="num">{todayCount}</div>
-          <div className="lbl">今日の記録</div>
+          <div className="num">{ptClients.length}</div>
+          <div className="lbl">PT</div>
         </div>
         <div className="summary-card">
-          <div className="num">PT</div>
-          <div className="lbl">モード</div>
+          <div className="num">{todayCount}</div>
+          <div className="lbl">今日の記録</div>
         </div>
       </div>
 
@@ -69,13 +78,17 @@ export default function OpsHomePage() {
             <h2>今日やること</h2>
           </div>
           <div className="list-plain">
-            <Link href="/ops/clients" className="row">
-              <strong>会員を選んで記録</strong>
-              <span className="muted tiny">会員マスタで人を決めてから記録</span>
-            </Link>
             <Link href="/ops/session" className="row">
-              <strong>記録を開く</strong>
-              <span className="muted tiny">選択中の人のセッション入力</span>
+              <strong>workout-log</strong>
+              <span className="muted tiny">一般会員の記録（メモがPT以外）</span>
+            </Link>
+            <Link href="/pta" className="row">
+              <strong>PT</strong>
+              <span className="muted tiny">回数セッション管理（別アプリ）</span>
+            </Link>
+            <Link href="/ops/clients" className="row">
+              <strong>会員を選ぶ</strong>
+              <span className="muted tiny">PT / 一般を切り替えて選択</span>
             </Link>
             <Link href="/ops/menus" className="row">
               <strong>メニューを作る</strong>
@@ -86,13 +99,51 @@ export default function OpsHomePage() {
 
         <section className="section-card">
           <div className="section-head">
-            <h2>会員</h2>
-            <Link href="/ops/clients" className="text-link tiny">
+            <h2>PT会員</h2>
+            <Link href="/ops/clients?tab=pt" className="text-link tiny">
               すべて
             </Link>
           </div>
           <div className="list-plain">
-            {clients.slice(0, 5).map((c) => (
+            {ptClients.slice(0, 5).map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="row"
+                onClick={() => startRecord(c)}
+                style={{
+                  width: "100%",
+                  border: 0,
+                  background: "transparent",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  font: "inherit",
+                }}
+              >
+                <strong>
+                  {c.name}
+                  <span className="pt-badge">PT</span>
+                </strong>
+                <span className="muted tiny">タップでPT記録</span>
+              </button>
+            ))}
+            {!ptClients.length ? (
+              <div className="empty-diary">
+                メモが「PT」の会員がいません。スプレッドシートで設定してください。
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="section-card">
+          <div className="section-head">
+            <h2>一般会員</h2>
+            <Link href="/ops/clients?tab=log" className="text-link tiny">
+              すべて
+            </Link>
+          </div>
+          <div className="list-plain">
+            {logClients.slice(0, 5).map((c) => (
               <button
                 key={c.id}
                 type="button"
@@ -111,10 +162,8 @@ export default function OpsHomePage() {
                 <span className="muted tiny">タップで記録</span>
               </button>
             ))}
-            {!clients.length ? (
-              <div className="empty-diary">
-                有効な会員がありません。スプレッドシート「会員マスタ」を確認してください。
-              </div>
+            {!logClients.length ? (
+              <div className="empty-diary">一般会員がいません。</div>
             ) : null}
           </div>
         </section>

@@ -1,11 +1,21 @@
 /* workout-log service worker */
-const CACHE = "wl-v2";
+const CACHE = "wl-v5";
 const PRECACHE = [
   "/",
+  "/ops",
+  "/pta",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "/icons/admin-192.png",
+  "/icons/admin-512.png",
+  "/icons/pta-192.png",
+  "/icons/pta-512.png",
   "/apple-touch-icon.png",
+  "/ops-apple-touch-icon.png",
+  "/pta-apple-touch-icon.png",
   "/favicon.ico",
+  "/ops/manifest.webmanifest",
+  "/pta/manifest.webmanifest",
 ];
 
 async function notify(progress, status) {
@@ -69,15 +79,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (req.mode === "navigate") {
+  const isDoc =
+    req.mode === "navigate" ||
+    req.headers.get("accept")?.includes("text/html") ||
+    url.searchParams.has("_rsc");
+
+  if (isDoc) {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          void caches.open(CACHE).then((c) => c.put(req, copy));
+          if (res.ok) {
+            const copy = res.clone();
+            void caches.open(CACHE).then((c) => c.put(req, copy));
+          }
           return res;
         })
-        .catch(() => caches.match(req).then((r) => r || caches.match("/")))
+        .catch(() => caches.match(req).then((r) => r || caches.match("/pta") || caches.match("/")))
     );
     return;
   }

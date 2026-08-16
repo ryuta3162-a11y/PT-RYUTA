@@ -54,9 +54,13 @@ function linesFromWorkouts(
 }
 
 function formatCopyHint(date: string, count: number, kind: "cardio" | "strength") {
-  const d = date.slice(5).replace("-", "/");
-  if (kind === "cardio") return `${d} の内容`;
-  return `${d} / ${count}セット`;
+  const label = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? date.slice(5).replace("-", "/")
+    : /^s\d+$/.test(date)
+      ? `第${date.slice(1)}回`
+      : date;
+  if (kind === "cardio") return `${label} の内容`;
+  return `${label} / ${count}セット`;
 }
 
 export function QuickLogPanel({

@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 
 const trainerItems = [
   { href: "/ops", label: "ホーム", icon: "⌂" },
-  { href: "/ops/session", label: "記録", icon: "☰" },
-  { href: "/ops/clients", label: "会員", icon: "◎" },
-  { href: "/ops/menus", label: "メニュー", icon: "✦" },
+  { href: "/ops/session", label: "記録", icon: "☰", match: "/ops/session" },
+  { href: "/ops/pt", label: "PT", icon: "◆", match: "/ops/pt" },
+  { href: "/ops/clients", label: "会員", icon: "◎", match: "/ops/clients" },
+  { href: "/ops/menus", label: "メニュー", icon: "✦", match: "/ops/menus" },
 ];
 
 export function TrainerNav() {
@@ -18,7 +19,7 @@ export function TrainerNav() {
         const active =
           item.href === "/ops"
             ? pathname === "/ops"
-            : pathname.startsWith(item.href);
+            : pathname.startsWith(item.match || item.href);
         return (
           <Link key={item.href} href={item.href} className={active ? "active" : ""}>
             <span className="ico">{item.icon}</span>

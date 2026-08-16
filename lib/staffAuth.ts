@@ -1,16 +1,14 @@
-const STAFF_PIN_KEY = "ry-log-ops-pin";
+/** スタッフ画面は URL（/ops）分離のみ。PIN入力はしない */
 
-export function saveStaffPin(pin: string) {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(STAFF_PIN_KEY, pin.trim());
+export function staffAuth(): { staff: true } {
+  return { staff: true };
 }
 
+/** @deprecated staffAuth() を使う */
 export function loadStaffPin(): string {
-  if (typeof window === "undefined") return "";
-  return sessionStorage.getItem(STAFF_PIN_KEY) || "";
+  return "";
 }
 
-export function clearStaffPin() {
-  if (typeof window === "undefined") return;
-  sessionStorage.removeItem(STAFF_PIN_KEY);
-}
+export function saveStaffPin(_pin: string) {}
+
+export function clearStaffPin() {}

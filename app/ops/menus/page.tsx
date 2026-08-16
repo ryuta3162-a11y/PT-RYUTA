@@ -8,7 +8,6 @@ import {
   listMenus,
   upsertMenu,
 } from "@/lib/api";
-import { loadStaffPin } from "@/lib/staffAuth";
 import type { Client, Exercise, Menu, MenuItem } from "@/lib/types";
 
 export default function OpsMenusPage() {
@@ -33,11 +32,10 @@ export default function OpsMenusPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const pin = loadStaffPin();
         const [c, e, m] = await Promise.all([
-          listClients(pin),
+          listClients(),
           listExercises(),
-          listMenus(pin),
+          listMenus(),
         ]);
         setClients(c);
         setExercises(e);
@@ -69,7 +67,6 @@ export default function OpsMenusPage() {
         title,
         notes,
         items,
-        pin: loadStaffPin(),
       });
       setMenus((prev) => [menu, ...prev]);
       setItems([]);

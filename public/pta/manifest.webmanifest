@@ -1,0 +1,34 @@
+{
+  "id": "/pta/?app=pt",
+  "name": "PT",
+  "short_name": "PT",
+  "description": "パーソナルトレーニング回数管理",
+  "start_url": "/pta/?source=pwa",
+  "scope": "/pta/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a0505",
+  "theme_color": "#8B0000",
+  "lang": "ja",
+  "categories": ["fitness", "health", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/pta-192.png?v=pt3",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pta-512.png?v=pt3",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pta-maskable-512.png?v=pt3",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

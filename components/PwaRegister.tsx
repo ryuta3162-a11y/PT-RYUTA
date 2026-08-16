@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -10,6 +11,12 @@ type BeforeInstallPromptEvent = Event & {
 type Phase = "idle" | "hint" | "ready" | "progress" | "done" | "hidden";
 
 export function PwaRegister() {
+  const pathname = usePathname() || "/";
+  const isAdmin = pathname.startsWith("/ops");
+  const isPta = pathname.startsWith("/pta");
+  const appName = isPta ? "PT" : isAdmin ? "work-admin" : "workout-log";
+  const mark = isPta ? "PT" : isAdmin ? "WA" : "WL";
+
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
     null
   );
@@ -17,6 +24,59 @@ export function PwaRegister() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("準備中");
   const [iosHint, setIosHint] = useState(false);
+
+  useEffect(() => {
+    const href = isPta
+      ? "/pta/manifest.webmanifest"
+      : isAdmin
+        ? "/ops/manifest.webmanifest"
+        : "/manifest.webmanifest";
+    const appleIcon = isPta
+      ? "/pta-apple-touch-icon.png?v=pt3"
+      : isAdmin
+        ? "/ops-apple-touch-icon.png?v=wa3"
+        : "/apple-touch-icon.png?v=wl3";
+    const title = isPta ? "PT" : isAdmin ? "WA" : "WL";
+
+    let link = document.querySelector(
+      'link[rel="manifest"]'
+    ) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "manifest";
+      document.head.appendChild(link);
+    }
+    link.href = href;
+
+    document
+      .querySelectorAll('link[rel="apple-touch-icon"]')
+      .forEach((el) => el.remove());
+    const apple = document.createElement("link");
+    apple.rel = "apple-touch-icon";
+    apple.sizes = "180x180";
+    apple.href = appleIcon;
+    document.head.appendChild(apple);
+
+    let appleTitle = document.querySelector(
+      'meta[name="apple-mobile-web-app-title"]'
+    ) as HTMLMetaElement | null;
+    if (!appleTitle) {
+      appleTitle = document.createElement("meta");
+      appleTitle.name = "apple-mobile-web-app-title";
+      document.head.appendChild(appleTitle);
+    }
+    appleTitle.content = title;
+
+    let appNameMeta = document.querySelector(
+      'meta[name="application-name"]'
+    ) as HTMLMetaElement | null;
+    if (!appNameMeta) {
+      appNameMeta = document.createElement("meta");
+      appNameMeta.name = "application-name";
+      document.head.appendChild(appNameMeta);
+    }
+    appNameMeta.content = appName;
+  }, [isAdmin, isPta, appName]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -53,7 +113,6 @@ export function PwaRegister() {
         setStatus("ダウンロード準備");
         const sw = reg.installing || reg.waiting || reg.active;
         sw?.postMessage({ type: "GET_PROGRESS" });
-        // 初回は install イベントで進捗が来る。既存SWならすぐ100へ
         if (reg.active && !reg.installing) {
           setProgress(100);
           setStatus("準備完了");
@@ -93,7 +152,6 @@ export function PwaRegister() {
     setPhase("progress");
     setStatus("インストール中");
     setProgress(20);
-    // OS側の実%は取れないため、体感用に段階表示
     const tick = window.setInterval(() => {
       setProgress((p) => Math.min(p + 12, 90));
     }, 180);
@@ -124,12 +182,12 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner done">
         <div className="pwa-banner-icon" aria-hidden>
-          WL
+          {mark}
         </div>
         <div style={{ flex: 1 }}>
           <strong>インストールが完了しました</strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
-            ホーム画面の workout-log から起動できます
+            ホーム画面の {appName} から起動できます
           </p>
           <div className="pwa-progress">
             <div className="pwa-progress-bar" style={{ width: "100%" }} />
@@ -143,14 +201,14 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner">
         <div className="pwa-banner-icon" aria-hidden>
-          WL
+          {mark}
         </div>
         <div style={{ flex: 1 }}>
           <strong>
             {status} {progress}%
           </strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
-            workout-log を準備しています
+            {appName} を準備しています
           </p>
           <div className="pwa-progress">
             <div className="pwa-progress-bar" style={{ width: `${progress}%` }} />
@@ -164,10 +222,10 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner">
         <div className="pwa-banner-icon" aria-hidden>
-          WL
+          {mark}
         </div>
         <div style={{ flex: 1 }}>
-          <strong>workout-log を追加</strong>
+          <strong>{appName} を追加</strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
             ホーム画面にインストール
           </p>
@@ -183,10 +241,10 @@ export function PwaRegister() {
     return (
       <div className="pwa-banner">
         <div className="pwa-banner-icon" aria-hidden>
-          WL
+          {mark}
         </div>
         <div style={{ flex: 1 }}>
-          <strong>workout-log を追加</strong>
+          <strong>{appName} を追加</strong>
           <p className="muted tiny" style={{ margin: "2px 0 0" }}>
             共有 →「ホーム画面に追加」
           </p>

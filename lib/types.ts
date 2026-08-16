@@ -65,3 +65,25 @@ export type WorkoutDraft = {
   rpe: string;
   memo: string;
 };
+
+/** PT管理アプリ: 回数ベースのセッション（1行＝1セット、個人ログと同じ） */
+export type PtSessionExercise = {
+  id?: string;
+  name: string;
+  weight?: string;
+  reps?: string;
+  sets?: string;
+  minutes?: string;
+  note?: string;
+};
+
+export type PtSession = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  sessionNo: number;
+  exercises: PtSessionExercise[];
+  memo: string;
+  createdAt: string;
+  updatedAt: string;
+};

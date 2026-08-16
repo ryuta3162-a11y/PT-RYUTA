@@ -9,7 +9,8 @@ var SHEETS = {
   CLIENTS: '会員マスタ',
   WORKOUTS: 'Workouts',
   MENUS: 'Menus',
-  EXERCISES: 'Exercises'
+  EXERCISES: 'Exercises',
+  PT_SESSIONS: 'PtSessions'
 };
 
 var DEFAULT_EXERCISES = [
@@ -87,7 +88,7 @@ function handleRequest(payload) {
         result = { ok: true, message: 'schema ready', sheets: Object.keys(SHEETS) };
         break;
       case 'listClients':
-        requireTrainer_(payload.pin);
+        requireTrainer_(payload);
         result = { ok: true, clients: listClientsPublic_() };
         break;
       case 'upsertClient':
@@ -119,11 +120,11 @@ function handleRequest(payload) {
         result = { ok: true, deleted: deleteWorkouts_(payload) };
         break;
       case 'listMenus':
-        requireTrainer_(payload.pin);
+        requireTrainer_(payload);
         result = { ok: true, menus: listMenus_(payload) };
         break;
       case 'upsertMenu':
-        requireTrainer_(payload.pin);
+        requireTrainer_(payload);
         result = { ok: true, menu: upsertMenu_(payload) };
         break;
       case 'getMenuByToken':
@@ -131,6 +132,18 @@ function handleRequest(payload) {
         break;
       case 'listExercises':
         result = { ok: true, exercises: listExercises_() };
+        break;
+      case 'listPtSessions':
+        requireTrainer_(payload);
+        result = { ok: true, sessions: listPtSessions_(payload) };
+        break;
+      case 'upsertPtSession':
+        requireTrainer_(payload);
+        result = { ok: true, session: upsertPtSession_(payload) };
+        break;
+      case 'deletePtSession':
+        requireTrainer_(payload);
+        result = { ok: true, deleted: deletePtSession_(payload) };
         break;
       case 'verifyTrainer':
         result = { ok: true, valid: verifyTrainer_(payload.pin) };
@@ -179,6 +192,7 @@ function ensureSchema_() {
   ensureClientNicknameColumn_();
   // 旧英語シートが残っていれば参照用に残す（空なら無視）
   migrateLegacyClients_();
+  ensureClientIds_();
   ensureSheet_(ss, SHEETS.WORKOUTS, [
     'id',
     'timestamp',
@@ -207,6 +221,16 @@ function ensureSchema_() {
     'published'
   ]);
   ensureSheet_(ss, SHEETS.EXERCISES, ['name', 'category', 'bodyPart'], DEFAULT_EXERCISES);
+  ensureSheet_(ss, SHEETS.PT_SESSIONS, [
+    'id',
+    'clientId',
+    'clientName',
+    'sessionNo',
+    'exercisesJson',
+    'memo',
+    'createdAt',
+    'updatedAt'
+  ]);
   renameCycleToBike_();
   replaceExerciseMaster_();
 }
@@ -364,8 +388,9 @@ function ensureClientNicknameColumn_() {
   sheet.getRange(1, lastCol + 1).setValue('ニックネーム');
 }
 
-function requireTrainer_(pin) {
-  if (!verifyTrainer_(pin)) throw new Error('管理者PINが違います');
+function requireTrainer_(p) {
+  // スタッフ画面は URL 分離のみ。PIN認証なし
+  return;
 }
 
 function findActiveClientById_(clientId) {
@@ -387,6 +412,7 @@ function requireMemberAuth_(p) {
 }
 
 function requireMemberOrTrainer_(p) {
+  if (p && p.staff === true) return { role: 'trainer', client: null };
   if (p.pin && verifyTrainer_(p.pin)) return { role: 'trainer', client: null };
   return { role: 'member', client: requireMemberAuth_(p) };
 }
@@ -440,10 +466,14 @@ function listClientsPublic_() {
 }
 
 function normalizeClient_(c) {
+  var code = String(c['会員番号'] || c.code || '').trim();
+  var id = String(c.id || '').trim();
+  // 手入力行で id 空のとき会員番号を暫定キーにする（ensureClientIds_ で本IDを埋める）
+  if (!id && code) id = code;
   return {
-    id: String(c.id || ''),
+    id: id,
     name: String(c['氏名'] || c.name || ''),
-    code: String(c['会員番号'] || c.code || ''),
+    code: code,
     nickname: String(c['ニックネーム'] || c.nickname || ''),
     goal: String(c['目標'] || c.goal || ''),
     notes: String(c['メモ'] || c.notes || ''),
@@ -452,6 +482,24 @@ function normalizeClient_(c) {
       String(c['有効'] !== undefined ? c['有効'] : c.active) !== 'FALSE' &&
       String(c['有効'] !== undefined ? c['有効'] : c.active) !== 'false'
   };
+}
+
+/** 会員マスタで id が空の行に cli_… を採番して書き戻す */
+function ensureClientIds_() {
+  var sheet = ss_().getSheetByName(SHEETS.CLIENTS);
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var idIdx = headers.indexOf('id');
+  var codeIdx = headers.indexOf('会員番号');
+  if (idIdx < 0) return;
+  for (var r = 1; r < values.length; r++) {
+    var id = String(values[r][idIdx] || '').trim();
+    if (id) continue;
+    var code = codeIdx >= 0 ? String(values[r][codeIdx] || '').trim() : '';
+    if (!code && !String(values[r].join('') || '').trim()) continue;
+    sheet.getRange(r + 1, idIdx + 1).setValue(uid_('cli'));
+  }
 }
 
 function publicClient_(c) {
@@ -534,7 +582,6 @@ function upsertClientInternal_(p) {
 
 /** トレーナーPIN必須。指定メンバーだけ有効にし、それ以外は無効化する */
 function adminSyncMembers_(p) {
-  if (!verifyTrainer_(p.pin)) throw new Error('管理者PINが違います');
   var members = p.members || [];
   if (!members.length) throw new Error('members が空です');
 
@@ -858,4 +905,107 @@ function verifyTrainer_(pin) {
   });
   var expected = row ? String(row.value) : '2468';
   return String(pin) === expected;
+}
+
+function normalizePtSession_(row) {
+  var exercises = [];
+  try {
+    exercises = JSON.parse(String(row.exercisesJson || '[]'));
+    if (!Array.isArray(exercises)) exercises = [];
+  } catch (e) {
+    exercises = [];
+  }
+  return {
+    id: String(row.id || ''),
+    clientId: String(row.clientId || ''),
+    clientName: String(row.clientName || ''),
+    sessionNo: Number(row.sessionNo) || 0,
+    exercises: exercises,
+    memo: String(row.memo || ''),
+    createdAt: String(row.createdAt || ''),
+    updatedAt: String(row.updatedAt || '')
+  };
+}
+
+function listPtSessions_(p) {
+  var clientId = String(p.clientId || '');
+  if (!clientId) throw new Error('clientId required');
+  var aliases = clientIdAliases_(clientId);
+  return sheetValues_(SHEETS.PT_SESSIONS)
+    .map(normalizePtSession_)
+    .filter(function (s) {
+      return aliases.indexOf(s.clientId) >= 0;
+    })
+    .sort(function (a, b) {
+      return a.sessionNo - b.sessionNo;
+    });
+}
+
+/** id / 会員番号のどちらで来ても突き合わせられるようにする */
+function clientIdAliases_(key) {
+  var k = String(key || '').trim();
+  var set = {};
+  if (k) set[k] = true;
+  listClients_().forEach(function (c) {
+    if (c.id === k || c.code === k) {
+      if (c.id) set[c.id] = true;
+      if (c.code) set[c.code] = true;
+    }
+  });
+  return Object.keys(set);
+}
+
+function nextPtSessionNo_(clientId) {
+  var max = 0;
+  listPtSessions_({ clientId: clientId }).forEach(function (s) {
+    if (s.sessionNo > max) max = s.sessionNo;
+  });
+  return max + 1;
+}
+
+function upsertPtSession_(p) {
+  var clientId = String(p.clientId || '');
+  var clientName = String(p.clientName || '');
+  if (!clientId) throw new Error('clientId required');
+  var exercises = Array.isArray(p.exercises) ? p.exercises : [];
+  var memo = String(p.memo || '');
+  var now = new Date().toISOString();
+
+  if (p.id) {
+    var existing = sheetValues_(SHEETS.PT_SESSIONS).find(function (r) {
+      return String(r.id) === String(p.id);
+    });
+    if (!existing) throw new Error('session not found');
+    var updated = updateRowById_(SHEETS.PT_SESSIONS, p.id, {
+      clientId: clientId,
+      clientName: clientName || existing.clientName,
+      sessionNo: Number(p.sessionNo) || Number(existing.sessionNo) || 1,
+      exercisesJson: JSON.stringify(exercises),
+      memo: memo,
+      updatedAt: now
+    });
+    if (!updated) throw new Error('更新に失敗しました');
+    return normalizePtSession_(updated);
+  }
+
+  var sessionNo = Number(p.sessionNo) || nextPtSessionNo_(clientId);
+  var row = {
+    id: uid_('pts'),
+    clientId: clientId,
+    clientName: clientName,
+    sessionNo: sessionNo,
+    exercisesJson: JSON.stringify(exercises),
+    memo: memo,
+    createdAt: now,
+    updatedAt: now
+  };
+  appendRow_(SHEETS.PT_SESSIONS, row);
+  return normalizePtSession_(row);
+}
+
+function deletePtSession_(p) {
+  var id = String(p.id || '');
+  if (!id) throw new Error('id required');
+  if (!deleteRowById_(SHEETS.PT_SESSIONS, id)) throw new Error('session not found');
+  return 1;
 }

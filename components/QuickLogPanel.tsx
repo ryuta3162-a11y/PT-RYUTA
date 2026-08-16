@@ -211,6 +211,7 @@ export function QuickLogPanel({
       <GroupPrefToggle value={prefs} onChange={onPrefsChange} compact />
 
       {hasAnyGroup(prefs) ? (
+        <>
           <ExercisePicker
             draft={draft}
             onChange={(next) => {

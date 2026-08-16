@@ -1795,12 +1795,30 @@ button.ex-ord {
   line-height: 1;
 }
 
-.pta-session-layout {
-  width: min(1100px, 100%);
+.content.session-flow.pta-session-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 16px;
+  width: min(1120px, 100%);
+  flex: 1 1 auto;
 }
 
-.content.session-flow.pta-session-layout {
-  width: min(1100px, 100%);
+.shell.pta .session-log-area,
+.shell.pta .session-log-area .log-board,
+.shell.pta .session-log-area .empty-diary {
+  flex: none;
+  min-height: 0;
+}
+
+.shell.pta .session-log-area .empty-diary {
+  display: block;
+  padding: 18px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: #555;
+  text-align: left;
 }
 
 .pta-session-error {
@@ -1810,6 +1828,7 @@ button.ex-ord {
 .pta-session-aside {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .pta-session-memo {
@@ -1818,17 +1837,45 @@ button.ex-ord {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 12px;
+  padding: 12px 14px;
+}
+
+.pta-session-memo span {
+  font-weight: 800;
+  font-size: 0.82rem;
 }
 
 .pta-session-memo textarea {
-  min-height: 72px;
+  min-height: 88px;
+  font-size: 1rem;
 }
 
 .pta-session-aside > .add-fab-btn,
 .pta-session-aside > .compose-card {
   width: 100%;
+  max-width: none;
   margin: 0;
+}
+
+.shell.pta .compose-card {
+  width: 100%;
+  padding: 16px;
+}
+
+.shell.pta .compose-head h2 {
+  font-size: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #111;
+}
+
+.shell.pta .group-pref-name {
+  font-size: 0.78rem;
+}
+
+.shell.pta .btn.primary {
+  min-height: 52px;
+  font-size: 1.05rem;
 }
 
 .sr-only {
@@ -1866,26 +1913,15 @@ button.ex-ord {
     font-size: 1.4rem;
   }
 
-  .pta-session-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
-    align-items: start;
-    gap: 22px;
-  }
-
-  .pta-session-layout .session-log-area {
-    min-height: 48vh;
+  .content.session-flow.pta-session-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
+    gap: 24px;
+    padding-top: 20px;
   }
 
   .pta-session-aside {
     position: sticky;
     top: 16px;
-  }
-
-  .content.session-flow.pta-session-layout > .compose-card,
-  .pta-session-aside > .compose-card {
-    width: 100%;
-    margin: 0;
   }
 }
 

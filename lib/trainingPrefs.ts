@@ -17,9 +17,9 @@ export function loadGroupPrefs(): GroupPrefs {
     if (!raw) return { ...DEFAULT_GROUP_PREFS };
     const parsed = JSON.parse(raw) as Partial<GroupPrefs>;
     return {
-      cardio: Boolean(parsed.cardio),
-      machine: Boolean(parsed.machine),
-      freeweight: Boolean(parsed.freeweight),
+      cardio: parsed.cardio !== false,
+      machine: parsed.machine !== false,
+      freeweight: parsed.freeweight !== false,
     };
   } catch {
     return { ...DEFAULT_GROUP_PREFS };

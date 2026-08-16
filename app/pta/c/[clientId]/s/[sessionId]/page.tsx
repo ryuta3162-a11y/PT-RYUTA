@@ -317,7 +317,7 @@ export default function PtaSessionEditPage() {
         <div className="session-log-area">
           <SessionLog
             workouts={workouts}
-            emptyText="まだ記録がありません。「追加」から種目を入れてください。"
+            emptyText="まだ記録がありません。パネルから種目を追加してください。"
             clientId={client ? clientRouteKey(client) : undefined}
             date={session ? `s${session.sessionNo}` : undefined}
             busy={busy}
@@ -349,6 +349,8 @@ export default function PtaSessionEditPage() {
             onSubmit={save}
             canSubmitExtra={Boolean(client && session)}
             history={history}
+            startOpen
+            stayOpen
           />
         </aside>
       </div>

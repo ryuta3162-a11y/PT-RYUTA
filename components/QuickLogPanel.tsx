@@ -28,6 +28,8 @@ type Props = {
   canSubmitExtra?: boolean;
   /** 複製元になる過去記録 */
   history?: Workout[];
+  startOpen?: boolean;
+  stayOpen?: boolean;
 };
 
 function emptySet(prev?: SetLine): SetLine {
@@ -74,8 +76,10 @@ export function QuickLogPanel({
   onSubmit,
   canSubmitExtra = true,
   history = [],
+  startOpen = false,
+  stayOpen = false,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const kind = getExerciseKind(draft.exercise);
   const [setLines, setSetLines] = useState<SetLine[]>([emptySet()]);
 
@@ -162,7 +166,7 @@ export function QuickLogPanel({
           memo: "",
         },
       ]);
-      setOpen(false);
+      if (!stayOpen) setOpen(false);
       return;
     }
 
@@ -175,7 +179,7 @@ export function QuickLogPanel({
       memo: s.memo.trim(),
     }));
     onSubmit(items);
-    setOpen(false);
+    if (!stayOpen) setOpen(false);
   }
 
   if (!open) {
@@ -206,10 +210,7 @@ export function QuickLogPanel({
 
       <GroupPrefToggle value={prefs} onChange={onPrefsChange} compact />
 
-      {!hasAnyGroup(prefs) ? (
-        <p className="notice">C / R / F を1つ以上選んでください</p>
-      ) : (
-        <>
+      {hasAnyGroup(prefs) ? (
           <ExercisePicker
             draft={draft}
             onChange={(next) => {
@@ -321,7 +322,7 @@ export function QuickLogPanel({
             </div>
           ) : null}
         </>
-      )}
+      ) : null}
 
       {error ? <p className="error">{error}</p> : null}
 

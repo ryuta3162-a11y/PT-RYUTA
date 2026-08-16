@@ -3,6 +3,7 @@ import {
   machineImageSrc,
   type CatalogItem,
 } from "@/lib/exerciseCatalog";
+import { dropSetLabel, isDropSetMemo } from "@/lib/dropSet";
 
 export type ExerciseKind = "cardio" | "strength";
 
@@ -40,6 +41,12 @@ export function getExerciseKind(name: string): ExerciseKind {
   return hit?.record === "minutes" ? "cardio" : "strength";
 }
 
+export function usesWeight(name: string): boolean {
+  const hit = findCatalogItem(name);
+  if (hit) return hit.record === "weight_reps";
+  return getExerciseKind(name) !== "cardio";
+}
+
 export function formatWorkoutDetail(w: {
   exercise: string;
   minutes?: number | null;
@@ -52,6 +59,16 @@ export function formatWorkoutDetail(w: {
   const kind = getExerciseKind(w.exercise);
   if (kind === "cardio") {
     const parts = [`${w.minutes ?? "-"} 分`];
+    if (w.memo && !/^セット\d+$/.test(w.memo)) parts.push(w.memo);
+    return parts.join(" · ");
+  }
+  if (isDropSetMemo(w.memo)) {
+    const rounds = w.sets != null && Number(w.sets) > 0 ? Number(w.sets) : 1;
+    return `ドロップ ×${rounds} · ${dropSetLabel(w.memo)}`;
+  }
+  if (!usesWeight(w.exercise)) {
+    const parts = [`${w.reps ?? "-"} 回`];
+    if (w.sets != null && Number(w.sets) > 0) parts[0] += ` × ${w.sets}`;
     if (w.memo && !/^セット\d+$/.test(w.memo)) parts.push(w.memo);
     return parts.join(" · ");
   }

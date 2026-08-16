@@ -1,12 +1,12 @@
 /**
  * PT RYUTA 種目マスタ（確定版）
  * - 有酸素: 分
- * - マシン / フリー: 重量×回数
+ * - マシン / フリー: 重量×回数（プッシュアップなど自重は回数のみ）
  * - 部位: 胸 / 背中 / 腹 / 脚 / 腕 / 肩
  * - 画像: 有酸素・レジスタンスのみ（経堂マシン写真）
  */
 
-export type RecordStyle = "minutes" | "weight_reps";
+export type RecordStyle = "minutes" | "weight_reps" | "reps";
 export type AreaGroup = "cardio" | "machine" | "freeweight";
 export type BodyPart = "胸" | "背中" | "腹" | "脚" | "腕" | "肩";
 
@@ -209,6 +209,7 @@ export const FREEWEIGHT_ITEMS: CatalogItem[] = [
   { id: "f_cable_curl", name: "ケーブルカール", group: "freeweight", bodyPart: "腕", record: "weight_reps", imageId: "fw_cable" },
   { id: "f_cable_side", name: "ケーブルサイドレイズ", group: "freeweight", bodyPart: "肩", record: "weight_reps", imageId: "fw_cable" },
   { id: "f_seated_row", name: "シーテッドロー", group: "freeweight", bodyPart: "背中", record: "weight_reps", imageId: "fw_row" },
+  { id: "f_pushup", name: "プッシュアップ", group: "freeweight", bodyPart: "胸", record: "reps", imageId: "fw_bench" },
 ];
 
 export const EXERCISE_CATALOG: CatalogItem[] = [

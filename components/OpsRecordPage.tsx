@@ -26,6 +26,7 @@ import {
   findCatalogItem,
   getExerciseKind,
   groupWorkoutsByExercise,
+  usesWeight,
 } from "@/lib/exercises";
 import {
   loadActiveTrainerClient,
@@ -178,6 +179,7 @@ export function OpsRecordPage({ kind }: Props) {
     setError("");
     try {
       const kindEx = getExerciseKind(input.exercise);
+      const withW = usesWeight(input.exercise);
       const results = await Promise.all(
         input.lines.map(async (line) => {
           if (line.id) {
@@ -185,7 +187,7 @@ export function OpsRecordPage({ kind }: Props) {
               id: line.id,
               exercise: input.exercise,
               weight:
-                kindEx === "cardio"
+                kindEx === "cardio" || !withW
                   ? null
                   : line.weight === ""
                     ? null
@@ -216,7 +218,7 @@ export function OpsRecordPage({ kind }: Props) {
             items: [
               {
                 exercise: input.exercise,
-                weight: kindEx === "cardio" ? "" : line.weight,
+                weight: kindEx === "cardio" || !withW ? "" : line.weight,
                 reps: kindEx === "cardio" ? "" : line.reps,
                 minutes: kindEx === "cardio" ? line.minutes : "",
                 sets: "",

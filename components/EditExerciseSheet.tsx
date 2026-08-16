@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { StepField } from "@/components/StepField";
-import { findExerciseImage, getExerciseKind } from "@/lib/exercises";
+import { findExerciseImage, getExerciseKind, usesWeight } from "@/lib/exercises";
+import { isDropSetMemo } from "@/lib/dropSet";
 import type { Workout } from "@/lib/types";
 
 export type EditSetLine = {
@@ -44,6 +45,7 @@ export function EditExerciseSheet({
   onDeleteAll,
 }: Props) {
   const kind = getExerciseKind(exercise);
+  const withWeight = usesWeight(exercise);
   const thumb = findExerciseImage(exercise, "sm");
   const [lines, setLines] = useState<EditSetLine[]>(() => toLines(items));
   const [error, setError] = useState("");
@@ -76,8 +78,11 @@ export function EditExerciseSheet({
         setError("分数を入力してください");
         return;
       }
-    } else if (!lines.every((l) => l.weight && l.reps)) {
+    } else if (withWeight && !lines.every((l) => l.weight && l.reps)) {
       setError("重量と回数を入力してください");
+      return;
+    } else if (!withWeight && !lines.every((l) => l.reps)) {
+      setError("回数を入力してください");
       return;
     }
     setSaving(true);
@@ -158,16 +163,18 @@ export function EditExerciseSheet({
                 />
               ) : (
                 <div className="set-card-controls">
-                  <StepField
-                    label="重量"
-                    unit="kg"
-                    step={5}
-                    startAt={20}
-                    min={0}
-                    value={line.weight}
-                    onChange={(weight) => update(index, { weight })}
-                    disabled={locked}
-                  />
+                  {withWeight ? (
+                    <StepField
+                      label="重量"
+                      unit="kg"
+                      step={5}
+                      startAt={20}
+                      min={0}
+                      value={line.weight}
+                      onChange={(weight) => update(index, { weight })}
+                      disabled={locked}
+                    />
+                  ) : null}
                   <StepField
                     label="回数"
                     unit="回"
@@ -180,6 +187,11 @@ export function EditExerciseSheet({
                   />
                 </div>
               )}
+              {isDropSetMemo(line.memo) ? (
+                <p className="muted tiny" style={{ margin: 0 }}>
+                  ドロップセット（メモを編集すると内容が変わります）
+                </p>
+              ) : null}
               <input
                 className="set-input memo wide"
                 value={line.memo}

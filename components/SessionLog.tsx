@@ -7,7 +7,9 @@ import {
   findExerciseImage,
   getExerciseKind,
   groupWorkoutsByExercise,
+  usesWeight,
 } from "@/lib/exercises";
+import { dropSetLabel, isDropSetMemo } from "@/lib/dropSet";
 import {
   applyExerciseOrder,
   loadExerciseOrder,
@@ -32,7 +34,7 @@ type Props = {
 
 function displayMemo(memo?: string) {
   const raw = String(memo || "").trim();
-  if (!raw || /^セット\d+$/.test(raw)) return "";
+  if (!raw || /^セット\d+$/.test(raw) || isDropSetMemo(raw)) return "";
   // 旧「種目メモ」結合形式の先頭だけ使う
   return raw.split(" / ")[0]?.trim() || "";
 }
@@ -234,6 +236,8 @@ export function SessionLog({
             <ul className="ex-set-list">
               {g.items.map((w, i) => {
                 const setMemo = displayMemo(w.memo);
+                const drop = isDropSetMemo(w.memo);
+                const rounds = w.sets != null && Number(w.sets) > 0 ? Number(w.sets) : 1;
                 return (
                   <li
                     key={w.id}
@@ -244,18 +248,28 @@ export function SessionLog({
                   >
                     <span className="ex-set-no">
                       <strong>{i + 1}</strong>
-                      <em>セット</em>
+                      <em>{drop ? "ドロップ" : "セット"}</em>
                     </span>
                     <div className="ex-set-body inline">
                       {kind === "cardio" ? (
                         <span className="ex-set-main">
                           {w.minutes ?? "-"} 分
                         </span>
-                      ) : (
+                      ) : drop ? (
+                        <span className="ex-set-main drop">
+                          <strong>×{rounds}</strong>
+                          <span className="unit"> {dropSetLabel(w.memo)}</span>
+                        </span>
+                      ) : usesWeight(g.exercise) ? (
                         <span className="ex-set-main">
                           <strong>{w.weight ?? "-"}</strong>
                           <span className="unit">kg</span>
                           <span className="times">×</span>
+                          <strong>{w.reps ?? "-"}</strong>
+                          <span className="unit">回</span>
+                        </span>
+                      ) : (
+                        <span className="ex-set-main">
                           <strong>{w.reps ?? "-"}</strong>
                           <span className="unit">回</span>
                         </span>

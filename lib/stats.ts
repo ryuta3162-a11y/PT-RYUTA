@@ -3,12 +3,15 @@ import {
   EXERCISE_CATALOG,
   type BodyPart,
 } from "@/lib/exerciseCatalog";
-import { getExerciseKind } from "@/lib/exercises";
+import { getExerciseKind, usesWeight } from "@/lib/exercises";
+import { isDropSetMemo } from "@/lib/dropSet";
 import type { Workout } from "@/lib/types";
 
 export function totalLoadKg(workouts: Workout[]): number {
   return workouts.reduce((sum, w) => {
     if (getExerciseKind(w.exercise) === "cardio") return sum;
+    if (!usesWeight(w.exercise)) return sum;
+    if (isDropSetMemo(w.memo)) return sum;
     const weight = Number(w.weight) || 0;
     const reps = Number(w.reps) || 0;
     return sum + weight * reps;
@@ -56,7 +59,9 @@ export function bodyPartStats(workouts: Workout[]): PartStat[] {
     if (!map.has(part)) map.set(part, { part, sets: 0, loadKg: 0, minutes: 0 });
     const row = map.get(part)!;
     row.sets += 1;
-    row.loadKg += (Number(w.weight) || 0) * (Number(w.reps) || 0);
+    if (usesWeight(w.exercise) && !isDropSetMemo(w.memo)) {
+      row.loadKg += (Number(w.weight) || 0) * (Number(w.reps) || 0);
+    }
   }
 
   return [...map.values()].filter((r) => r.sets > 0 || r.loadKg > 0 || r.minutes > 0);

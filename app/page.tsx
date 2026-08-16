@@ -21,7 +21,7 @@ import {
   verifyClient,
 } from "@/lib/api";
 import type { EditSetLine } from "@/components/EditExerciseSheet";
-import { findCatalogItem, getExerciseKind } from "@/lib/exercises";
+import { findCatalogItem, getExerciseKind, usesWeight } from "@/lib/exercises";
 import {
   MEMBER_KEY,
   clearMemberSession,
@@ -274,6 +274,7 @@ export default function MemberHomePage() {
     setError("");
     try {
       const kind = getExerciseKind(input.exercise);
+      const withW = usesWeight(input.exercise);
       const results = await Promise.all(
         input.lines.map(async (line) => {
           if (line.id) {
@@ -281,7 +282,7 @@ export default function MemberHomePage() {
               id: line.id,
               exercise: input.exercise,
               weight:
-                kind === "cardio"
+                kind === "cardio" || !withW
                   ? null
                   : line.weight === ""
                     ? null
@@ -312,7 +313,7 @@ export default function MemberHomePage() {
             items: [
               {
                 exercise: input.exercise,
-                weight: kind === "cardio" ? "" : line.weight,
+                weight: kind === "cardio" || !withW ? "" : line.weight,
                 reps: kind === "cardio" ? "" : line.reps,
                 minutes: kind === "cardio" ? line.minutes : "",
                 sets: "",

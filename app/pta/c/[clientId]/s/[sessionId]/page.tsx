@@ -19,7 +19,7 @@ import {
   findClientByRouteKey,
   isPtClient,
 } from "@/lib/clientKind";
-import { findCatalogItem, getExerciseKind } from "@/lib/exercises";
+import { findCatalogItem, getExerciseKind, usesWeight } from "@/lib/exercises";
 import {
   enabledGroups,
   loadGroupPrefs,
@@ -84,6 +84,7 @@ function draftToWorkout(
   session: PtSession
 ): Workout {
   const kind = getExerciseKind(item.exercise);
+  const withW = usesWeight(item.exercise);
   return {
     id: uidLocal(),
     timestamp: new Date().toISOString(),
@@ -93,7 +94,7 @@ function draftToWorkout(
     mode: "pt",
     exercise: item.exercise,
     minutes: kind === "cardio" ? numOrNull(item.minutes) : null,
-    weight: kind === "cardio" ? null : numOrNull(item.weight),
+    weight: kind === "cardio" || !withW ? null : numOrNull(item.weight),
     reps: kind === "cardio" ? null : numOrNull(item.reps),
     sets: numOrNull(item.sets),
     rpe: numOrNull(item.rpe),
@@ -206,6 +207,7 @@ export default function PtaSessionEditPage() {
     setError("");
     try {
       const kind = getExerciseKind(input.exercise);
+      const withW = usesWeight(input.exercise);
       const existingIds = new Set(input.existing.map((w) => w.id));
       const rebuilt: Workout[] = [];
       for (const line of input.lines) {
@@ -221,9 +223,9 @@ export default function PtaSessionEditPage() {
           mode: "pt",
           exercise: input.exercise,
           minutes: kind === "cardio" ? numOrNull(line.minutes) : null,
-          weight: kind === "cardio" ? null : numOrNull(line.weight),
+          weight: kind === "cardio" || !withW ? null : numOrNull(line.weight),
           reps: kind === "cardio" ? null : numOrNull(line.reps),
-          sets: null,
+          sets: prev?.sets ?? null,
           rpe: null,
           memo: line.memo || "",
           actor: "trainer",

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ExercisePicker } from "@/components/ExercisePicker";
 import { GroupPrefToggle } from "@/components/GroupPrefToggle";
 import { StepField } from "@/components/StepField";
-import { findCatalogItem, findLatestSession, getExerciseKind } from "@/lib/exercises";
+import { findCatalogItem, findLatestSession, getExerciseKind, usesWeight } from "@/lib/exercises";
+import { encodeDropSet, isDropSetMemo, parseDropSet } from "@/lib/dropSet";
 import type { AreaGroup } from "@/lib/exerciseCatalog";
 import { emptyDraft, ping } from "@/lib/api";
 import { hasAnyGroup, type GroupPrefs } from "@/lib/trainingPrefs";
@@ -81,7 +82,10 @@ export function QuickLogPanel({
 }: Props) {
   const [open, setOpen] = useState(startOpen);
   const kind = getExerciseKind(draft.exercise);
+  const withWeight = usesWeight(draft.exercise);
   const [setLines, setSetLines] = useState<SetLine[]>([emptySet()]);
+  const [dropMode, setDropMode] = useState(false);
+  const [dropRounds, setDropRounds] = useState("1");
 
   useEffect(() => {
     if (!open) return;
@@ -120,6 +124,15 @@ export function QuickLogPanel({
       ...emptyDraft(),
       exercise: session.exercise,
     });
+    const dropItem = session.items.find((w) => isDropSetMemo(w.memo));
+    if (dropItem) {
+      const parsed = parseDropSet(dropItem.memo);
+      setSetLines(parsed.length ? parsed.map((s) => ({ ...s, memo: "" })) : linesFromWorkouts(session.items));
+      setDropMode(true);
+      setDropRounds(dropItem.sets != null ? String(dropItem.sets) : "1");
+      return;
+    }
+    setDropMode(false);
     setSetLines(linesFromWorkouts(session.items));
   }
 
@@ -139,11 +152,15 @@ export function QuickLogPanel({
     );
   }
 
+  const lineReady = (s: SetLine) =>
+    Boolean(s.reps) && (withWeight ? Boolean(s.weight) : true);
+
   const strengthReady =
     Boolean(draft.exercise) &&
     kind !== "cardio" &&
     setLines.length > 0 &&
-    setLines.every((s) => s.weight && s.reps);
+    setLines.every(lineReady) &&
+    (!dropMode || Boolean(dropRounds));
 
   const cardioReady =
     Boolean(draft.exercise) && kind === "cardio" && Boolean(draft.minutes);
@@ -170,16 +187,32 @@ export function QuickLogPanel({
       return;
     }
 
-    const items: WorkoutDraft[] = setLines.map((s) => ({
-      ...draft,
-      weight: s.weight,
-      reps: s.reps,
-      sets: "",
-      minutes: "",
-      memo: s.memo.trim(),
-    }));
-    onSubmit(items);
+    if (dropMode) {
+      onSubmit([
+        {
+          ...draft,
+          weight: withWeight ? setLines[0].weight : "",
+          reps: setLines[0].reps,
+          sets: dropRounds || "1",
+          minutes: "",
+          memo: encodeDropSet(setLines, withWeight),
+        },
+      ]);
+    } else {
+      const items: WorkoutDraft[] = setLines.map((s) => ({
+        ...draft,
+        weight: withWeight ? s.weight : "",
+        reps: s.reps,
+        sets: "",
+        minutes: "",
+        memo: s.memo.trim(),
+      }));
+      onSubmit(items);
+    }
     if (!stayOpen) setOpen(false);
+    setDropMode(false);
+    setDropRounds("1");
+    setSetLines([emptySet()]);
   }
 
   if (!open) {
@@ -218,6 +251,8 @@ export function QuickLogPanel({
               onChange(next);
               if (next.exercise !== draft.exercise) {
                 setSetLines([emptySet()]);
+                setDropMode(false);
+                setDropRounds("1");
               }
             }}
             enabledGroups={enabledGroups}
@@ -260,11 +295,19 @@ export function QuickLogPanel({
 
           {draft.exercise && kind !== "cardio" ? (
             <div className="set-stack">
+              {dropMode ? (
+                <div className="drop-banner">
+                  <strong>ドロップセット</strong>
+                  <span>
+                    下の段階を1セットにまとめ、何回繰り返したかを入力
+                  </span>
+                </div>
+              ) : null}
               {setLines.map((line, index) => (
                 <div key={index} className="set-card">
                   <div className="set-card-head">
                     <span className="set-card-title">
-                      SET <strong>{index + 1}</strong>
+                      {dropMode ? "段階" : "SET"} <strong>{index + 1}</strong>
                     </span>
                     <button
                       type="button"
@@ -277,16 +320,18 @@ export function QuickLogPanel({
                     </button>
                   </div>
                   <div className="set-card-controls">
-                    <StepField
-                      label="重量"
-                      unit="kg"
-                      step={5}
-                      startAt={20}
-                      min={0}
-                      value={line.weight}
-                      onChange={(weight) => updateSet(index, { weight })}
-                      disabled={busy}
-                    />
+                    {withWeight ? (
+                      <StepField
+                        label="重量"
+                        unit="kg"
+                        step={5}
+                        startAt={20}
+                        min={0}
+                        value={line.weight}
+                        onChange={(weight) => updateSet(index, { weight })}
+                        disabled={busy}
+                      />
+                    ) : null}
                     <StepField
                       label="回数"
                       unit="回"
@@ -298,16 +343,18 @@ export function QuickLogPanel({
                       disabled={busy}
                     />
                   </div>
-                  <input
-                    className="set-input memo wide"
-                    value={line.memo}
-                    onChange={(e) =>
-                      updateSet(index, { memo: e.target.value })
-                    }
-                    placeholder="メモ（任意）"
-                    aria-label="メモ"
-                    disabled={busy}
-                  />
+                  {dropMode ? null : (
+                    <input
+                      className="set-input memo wide"
+                      value={line.memo}
+                      onChange={(e) =>
+                        updateSet(index, { memo: e.target.value })
+                      }
+                      placeholder="メモ（任意）"
+                      aria-label="メモ"
+                      disabled={busy}
+                    />
+                  )}
                 </div>
               ))}
 
@@ -318,8 +365,43 @@ export function QuickLogPanel({
                 aria-label="セット追加"
                 disabled={busy}
               >
-                ＋ セット追加
+                {dropMode ? "＋ 段階を追加" : "＋ セット追加"}
               </button>
+
+              {dropMode ? (
+                <div className="drop-rounds">
+                  <StepField
+                    label="リピート"
+                    unit="セット"
+                    step={1}
+                    startAt={1}
+                    min={1}
+                    value={dropRounds}
+                    onChange={setDropRounds}
+                    disabled={busy}
+                  />
+                  <button
+                    type="button"
+                    className="text-link tiny"
+                    onClick={() => {
+                      setDropMode(false);
+                      setDropRounds("1");
+                    }}
+                    style={{ border: 0, background: "transparent" }}
+                  >
+                    通常セットに戻す
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="drop-toggle"
+                  disabled={busy || setLines.filter(lineReady).length < 2}
+                  onClick={() => setDropMode(true)}
+                >
+                  ドロップセットにする
+                </button>
+              )}
             </div>
           ) : null}
         </>
@@ -335,7 +417,9 @@ export function QuickLogPanel({
       >
         {busy
           ? "保存中…"
-          : kind !== "cardio" && setLines.length > 1
+          : dropMode
+            ? `ドロップ ×${dropRounds || 1} を記録`
+            : kind !== "cardio" && setLines.length > 1
             ? `${setLines.length}セットを記録`
             : "記録する"}
       </button>

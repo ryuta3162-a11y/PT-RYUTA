@@ -10,7 +10,7 @@ import {
   type BodyPart,
   type CatalogItem,
 } from "@/lib/exerciseCatalog";
-import { findExerciseImage, getExerciseKind } from "@/lib/exercises";
+import { findExerciseImage, getExerciseKind, usesWeight } from "@/lib/exercises";
 import type { WorkoutDraft } from "@/lib/types";
 
 const PART_META: Record<
@@ -89,7 +89,11 @@ export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
             <p className="picked-name">
               {draft.exercise}
               <span className="picked-kind">
-                {kind === "cardio" ? "min" : "kg×rep"}
+                {kind === "cardio"
+                  ? "min"
+                  : usesWeight(draft.exercise)
+                    ? "kg×rep"
+                    : "回"}
               </span>
             </p>
           </div>

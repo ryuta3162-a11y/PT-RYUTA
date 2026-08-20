@@ -2549,8 +2549,8 @@ button.ex-ord {
   color: rgba(255, 255, 255, 0.55);
 }
 
-.shell.member .compose-member .group-pref-title {
-  color: rgba(255, 255, 255, 0.4);
+.shell.member .compose-member .group-pref-grid {
+  grid-template-columns: 1fr 1fr;
 }
 
 .shell.member .compose-member .group-pref-card {

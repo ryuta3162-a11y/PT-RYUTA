@@ -58,7 +58,6 @@ export function OpsRecordPage({ kind }: Props) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [draft, setDraft] = useState<WorkoutDraft>(emptyDraft());
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState<GroupPrefs>({
     cardio: true,
@@ -137,7 +136,37 @@ export function OpsRecordPage({ kind }: Props) {
     if (item && !next[item.group]) setDraft(emptyDraft());
   }
 
-  async function save(items: WorkoutDraft[]) {
+  function numOrNull(v?: string | number | null) {
+    if (v === "" || v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function draftsToLocal(items: WorkoutDraft[]): Workout[] {
+    if (!active) return [];
+    return items.map((item) => {
+      const kindEx = getExerciseKind(item.exercise);
+      const withW = usesWeight(item.exercise);
+      return {
+        id: `tmp_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`,
+        timestamp: new Date().toISOString(),
+        date,
+        clientId: active.id,
+        clientName: active.name,
+        mode,
+        exercise: item.exercise,
+        minutes: kindEx === "cardio" ? numOrNull(item.minutes) : null,
+        weight: kindEx === "cardio" || !withW ? null : numOrNull(item.weight),
+        reps: kindEx === "cardio" ? null : numOrNull(item.reps),
+        sets: numOrNull(item.sets),
+        rpe: numOrNull(item.rpe),
+        memo: item.memo || "",
+        actor: isPt ? "trainer" : "staff",
+      };
+    });
+  }
+
+  function save(items: WorkoutDraft[]) {
     if (!active) {
       setError("会員マスタで記録する人を選んでください");
       return;
@@ -147,26 +176,31 @@ export function OpsRecordPage({ kind }: Props) {
       return;
     }
 
-    setBusy(true);
     setError("");
-    try {
-      const saved = await addWorkouts({
-        clientId: active.id,
-        clientName: active.name,
-        mode,
-        actor: isPt ? "trainer" : "staff",
-        date,
-        items,
-        staff: true,
+    const optimistic = draftsToLocal(items);
+    const tempIds = new Set(optimistic.map((w) => w.id));
+    setWorkouts((prev) => [...optimistic, ...prev]);
+    setDraft(emptyDraft());
+
+    void addWorkouts({
+      clientId: active.id,
+      clientName: active.name,
+      mode,
+      actor: isPt ? "trainer" : "staff",
+      date,
+      items,
+      staff: true,
+    })
+      .then((saved) => {
+        setWorkouts((prev) => [
+          ...saved,
+          ...prev.filter((w) => !tempIds.has(w.id)),
+        ]);
+      })
+      .catch((err) => {
+        setWorkouts((prev) => prev.filter((w) => !tempIds.has(w.id)));
+        setError(err instanceof Error ? err.message : String(err));
       });
-      setWorkouts((prev) => [...saved, ...prev]);
-      setDraft(emptyDraft());
-      void refreshWorkouts(active.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function saveGroup(input: {
@@ -175,93 +209,114 @@ export function OpsRecordPage({ kind }: Props) {
     lines: EditSetLine[];
   }) {
     if (!active) return;
-    setBusy(true);
     setError("");
-    try {
-      const kindEx = getExerciseKind(input.exercise);
-      const withW = usesWeight(input.exercise);
-      const results = await Promise.all(
-        input.lines.map(async (line) => {
-          if (line.id) {
-            await updateWorkout({
-              id: line.id,
-              exercise: input.exercise,
-              weight:
-                kindEx === "cardio" || !withW
-                  ? null
-                  : line.weight === ""
+    const kindEx = getExerciseKind(input.exercise);
+    const withW = usesWeight(input.exercise);
+    const existingIds = new Set(input.existing.map((w) => w.id));
+    const rollback = workouts;
+    const rebuilt: Workout[] = input.lines.map((line) => {
+      const prev = line.id ? workouts.find((w) => w.id === line.id) : undefined;
+      return {
+        id: prev?.id || `tmp_${Math.random().toString(36).slice(2, 10)}`,
+        timestamp: prev?.timestamp || new Date().toISOString(),
+        date,
+        clientId: active.id,
+        clientName: active.name,
+        mode,
+        exercise: input.exercise,
+        minutes: kindEx === "cardio" ? numOrNull(line.minutes) : null,
+        weight: kindEx === "cardio" || !withW ? null : numOrNull(line.weight),
+        reps: kindEx === "cardio" ? null : numOrNull(line.reps),
+        sets: prev?.sets ?? null,
+        rpe: null,
+        memo: line.memo || "",
+        actor: isPt ? "trainer" : "staff",
+      };
+    });
+    setWorkouts([
+      ...workouts.filter((w) => !existingIds.has(w.id)),
+      ...rebuilt,
+    ]);
+
+    void (async () => {
+      try {
+        const results = await Promise.all(
+          input.lines.map(async (line) => {
+            if (line.id) {
+              await updateWorkout({
+                id: line.id,
+                exercise: input.exercise,
+                weight:
+                  kindEx === "cardio" || !withW
                     ? null
-                    : Number(line.weight),
-              reps:
-                kindEx === "cardio"
-                  ? null
-                  : line.reps === ""
+                    : line.weight === ""
+                      ? null
+                      : Number(line.weight),
+                reps:
+                  kindEx === "cardio"
                     ? null
-                    : Number(line.reps),
-              minutes:
-                kindEx === "cardio"
-                  ? line.minutes === ""
-                    ? null
-                    : Number(line.minutes)
-                  : null,
-              memo: line.memo,
+                    : line.reps === ""
+                      ? null
+                      : Number(line.reps),
+                minutes:
+                  kindEx === "cardio"
+                    ? line.minutes === ""
+                      ? null
+                      : Number(line.minutes)
+                    : null,
+                memo: line.memo,
+                staff: true,
+              });
+              return line.id;
+            }
+            const created = await addWorkouts({
+              clientId: active.id,
+              clientName: active.name,
+              mode,
+              actor: isPt ? "trainer" : "staff",
+              date,
+              items: [
+                {
+                  exercise: input.exercise,
+                  weight: kindEx === "cardio" || !withW ? "" : line.weight,
+                  reps: kindEx === "cardio" ? "" : line.reps,
+                  minutes: kindEx === "cardio" ? line.minutes : "",
+                  sets: "",
+                  rpe: "",
+                  memo: line.memo,
+                },
+              ],
               staff: true,
             });
-            return line.id;
-          }
-          const created = await addWorkouts({
-            clientId: active.id,
-            clientName: active.name,
-            mode,
-            actor: isPt ? "trainer" : "staff",
-            date,
-            items: [
-              {
-                exercise: input.exercise,
-                weight: kindEx === "cardio" || !withW ? "" : line.weight,
-                reps: kindEx === "cardio" ? "" : line.reps,
-                minutes: kindEx === "cardio" ? line.minutes : "",
-                sets: "",
-                rpe: "",
-                memo: line.memo,
-              },
-            ],
-            staff: true,
-          });
-          return created.map((c) => c.id);
-        })
-      );
-      const kept = new Set(results.flat());
-      const removeIds = input.existing
-        .map((w) => w.id)
-        .filter((id) => !kept.has(id));
-      if (removeIds.length) await deleteWorkouts(removeIds, { staff: true });
-      await refreshWorkouts(active.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+            return created.map((c) => c.id);
+          })
+        );
+        const kept = new Set(results.flat());
+        const removeIds = input.existing
+          .map((w) => w.id)
+          .filter((id) => !kept.has(id));
+        if (removeIds.length) await deleteWorkouts(removeIds, { staff: true });
+        await refreshWorkouts(active.id);
+      } catch (err) {
+        setWorkouts(rollback);
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    })();
   }
 
   async function deleteGroup(items: Workout[]) {
     if (!active) return;
-    setBusy(true);
     setError("");
-    try {
-      await deleteWorkouts(
-        items.map((w) => w.id),
-        { staff: true }
-      );
-      setWorkouts((prev) => {
-        const ids = new Set(items.map((w) => w.id));
-        return prev.filter((w) => !ids.has(w.id));
-      });
-    } catch (err) {
+    const ids = new Set(items.map((w) => w.id));
+    const rollback = workouts;
+    setWorkouts((prev) => prev.filter((w) => !ids.has(w.id)));
+    void deleteWorkouts(
+      items.map((w) => w.id).filter((id) => !id.startsWith("tmp_")),
+      { staff: true }
+    ).catch((err) => {
+      setWorkouts(rollback);
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   if (loading) {
@@ -301,9 +356,6 @@ export function OpsRecordPage({ kind }: Props) {
 
   return (
     <main className="shell session">
-      {busy ? (
-        <LoadingScreen overlay label="記録を反映しています…" />
-      ) : null}
       <div className="compact-bar">
         <div className="top-stats">
           <span>
@@ -345,7 +397,7 @@ export function OpsRecordPage({ kind }: Props) {
           emptyText="まだありません"
           clientId={active.id}
           date={date}
-          busy={busy}
+          busy={false}
           onSaveGroup={saveGroup}
           onDeleteGroup={deleteGroup}
         />
@@ -356,11 +408,12 @@ export function OpsRecordPage({ kind }: Props) {
           prefs={prefs}
           onPrefsChange={updatePrefs}
           enabledGroups={groups}
-          busy={busy}
+          busy={false}
           error={error}
           onSubmit={save}
           canSubmitExtra={Boolean(active)}
           history={workouts}
+          stayOpen
         />
       </div>
 

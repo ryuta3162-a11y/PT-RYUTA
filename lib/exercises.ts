@@ -143,6 +143,7 @@ export function findLatestSession(
     weight: number | null;
     reps: number | null;
     minutes: number | null;
+    sets?: number | null;
     memo?: string;
   }>,
   exercise?: string

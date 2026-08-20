@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { EditSetLine } from "@/components/EditExerciseSheet";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -16,6 +16,7 @@ import {
   peekPtSessions,
   upsertPtSession,
 } from "@/lib/api";
+import { createLatestWriter } from "@/lib/bgPersist";
 import {
   clientRouteKey,
   findClientByRouteKey,
@@ -119,12 +120,45 @@ export default function PtaSessionEditPage() {
   const [draft, setDraft] = useState<WorkoutDraft>(emptyDraft());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState<GroupPrefs>({
     cardio: true,
     machine: true,
     freeweight: true,
   });
+
+  const workoutsRef = useRef(workouts);
+  const memoRef = useRef(memo);
+  const clientRef = useRef(client);
+  const sessionRef = useRef(session);
+  workoutsRef.current = workouts;
+  memoRef.current = memo;
+  clientRef.current = client;
+  sessionRef.current = session;
+
+  const writerRef = useRef(
+    createLatestWriter<{ workouts: Workout[]; memo: string }>(async (snap) => {
+      const c = clientRef.current;
+      const s = sessionRef.current;
+      if (!c || !s) return;
+      try {
+        const updated = await upsertPtSession({
+          id: s.id,
+          clientId: clientRouteKey(c),
+          clientName: c.name,
+          sessionNo: s.sessionNo,
+          exercises: workoutsToExercises(snap.workouts),
+          memo: snap.memo,
+        });
+        setSession(updated);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    })
+  );
+
+  useEffect(() => writerRef.current.onSyncing(setSyncing), []);
 
   const groups = enabledGroups(prefs);
   const backHref = `/pta/c/${encodeURIComponent(clientRouteKey(client || { id: clientId, code: clientId }))}`;
@@ -175,18 +209,13 @@ export default function PtaSessionEditPage() {
 
   const history = useMemo(() => workouts, [workouts]);
 
-  async function persist(nextWorkouts: Workout[], nextMemo = memo) {
-    if (!client || !session) return;
-    const updated = await upsertPtSession({
-      id: session.id,
-      clientId: clientRouteKey(client),
-      clientName: client.name,
-      sessionNo: session.sessionNo,
-      exercises: workoutsToExercises(nextWorkouts),
-      memo: nextMemo,
-    });
-    setSession(updated);
-    setWorkouts(exercisesToWorkouts(updated, client));
+  function persistLocal(nextWorkouts: Workout[], nextMemo = memoRef.current) {
+    workoutsRef.current = nextWorkouts;
+    memoRef.current = nextMemo;
+    setWorkouts(nextWorkouts);
+    setMemo(nextMemo);
+    setError("");
+    writerRef.current.push({ workouts: nextWorkouts, memo: nextMemo });
   }
 
   function updatePrefs(next: GroupPrefs) {
@@ -196,23 +225,15 @@ export default function PtaSessionEditPage() {
     if (item && !next[item.group]) setDraft(emptyDraft());
   }
 
-  async function save(items: WorkoutDraft[]) {
+  function save(items: WorkoutDraft[]) {
     if (!client || !session) return;
     if (!items.length || !findCatalogItem(items[0].exercise)) {
       setError("種目を選んでください");
       return;
     }
-    setBusy(true);
-    setError("");
-    try {
-      const added = items.map((item) => draftToWorkout(item, client, session));
-      await persist([...workouts, ...added]);
-      setDraft(emptyDraft());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+    const added = items.map((item) => draftToWorkout(item, client, session));
+    persistLocal([...workoutsRef.current, ...added]);
+    setDraft(emptyDraft());
   }
 
   async function saveGroup(input: {
@@ -221,71 +242,46 @@ export default function PtaSessionEditPage() {
     lines: EditSetLine[];
   }) {
     if (!client || !session) return;
-    setBusy(true);
-    setError("");
-    try {
-      const kind = getExerciseKind(input.exercise);
-      const withW = usesWeight(input.exercise);
-      const existingIds = new Set(input.existing.map((w) => w.id));
-      const rebuilt: Workout[] = [];
-      for (const line of input.lines) {
-        const prev = line.id
-          ? workouts.find((w) => w.id === line.id)
-          : undefined;
-        rebuilt.push({
-          id: prev?.id || uidLocal(),
-          timestamp: prev?.timestamp || new Date().toISOString(),
-          date: `s${session.sessionNo}`,
-          clientId: clientRouteKey(client),
-          clientName: client.name,
-          mode: "pt",
-          exercise: input.exercise,
-          minutes: kind === "cardio" ? numOrNull(line.minutes) : null,
-          weight: kind === "cardio" || !withW ? null : numOrNull(line.weight),
-          reps: kind === "cardio" ? null : numOrNull(line.reps),
-          sets: prev?.sets ?? null,
-          rpe: null,
-          memo: line.memo || "",
-          actor: "trainer",
-        });
-      }
-      const next = [
-        ...workouts.filter((w) => !existingIds.has(w.id)),
-        ...rebuilt,
-      ];
-      await persist(next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
+    const kind = getExerciseKind(input.exercise);
+    const withW = usesWeight(input.exercise);
+    const existingIds = new Set(input.existing.map((w) => w.id));
+    const rebuilt: Workout[] = [];
+    for (const line of input.lines) {
+      const prev = line.id
+        ? workoutsRef.current.find((w) => w.id === line.id)
+        : undefined;
+      rebuilt.push({
+        id: prev?.id || uidLocal(),
+        timestamp: prev?.timestamp || new Date().toISOString(),
+        date: `s${session.sessionNo}`,
+        clientId: clientRouteKey(client),
+        clientName: client.name,
+        mode: "pt",
+        exercise: input.exercise,
+        minutes: kind === "cardio" ? numOrNull(line.minutes) : null,
+        weight: kind === "cardio" || !withW ? null : numOrNull(line.weight),
+        reps: kind === "cardio" ? null : numOrNull(line.reps),
+        sets: prev?.sets ?? null,
+        rpe: null,
+        memo: line.memo || "",
+        actor: "trainer",
+      });
     }
+    persistLocal([
+      ...workoutsRef.current.filter((w) => !existingIds.has(w.id)),
+      ...rebuilt,
+    ]);
   }
 
   async function deleteGroup(items: Workout[]) {
     if (!client || !session) return;
-    setBusy(true);
-    setError("");
-    try {
-      const ids = new Set(items.map((w) => w.id));
-      await persist(workouts.filter((w) => !ids.has(w.id)));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+    const ids = new Set(items.map((w) => w.id));
+    persistLocal(workoutsRef.current.filter((w) => !ids.has(w.id)));
   }
 
-  async function saveMemo() {
+  function saveMemo() {
     if (!client || !session) return;
-    setBusy(true);
-    setError("");
-    try {
-      await persist(workouts, memo);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+    persistLocal(workoutsRef.current, memo);
   }
 
   async function removeSession() {
@@ -312,12 +308,18 @@ export default function PtaSessionEditPage() {
   return (
     <main className="shell member session wide pta">
       {busy ? (
-        <LoadingScreen overlay label="記録を反映しています" />
+        <LoadingScreen overlay label="セッションを削除しています…" />
       ) : null}
       <PtaHeader
         backHref={backHref}
         backLabel="セッション一覧"
-        kicker={session ? `第${session.sessionNo}回` : "セッション"}
+        kicker={
+          session
+            ? syncing
+              ? `第${session.sessionNo}回 · 同期中`
+              : `第${session.sessionNo}回`
+            : "セッション"
+        }
         title={client?.name || "PT会員"}
         action={
           <button
@@ -351,7 +353,7 @@ export default function PtaSessionEditPage() {
             emptyText="まだ記録がありません"
             clientId={client ? clientRouteKey(client) : undefined}
             date={session ? `s${session.sessionNo}` : undefined}
-            busy={busy}
+            busy={false}
             onSaveGroup={saveGroup}
             onDeleteGroup={deleteGroup}
           />
@@ -363,7 +365,7 @@ export default function PtaSessionEditPage() {
           prefs={prefs}
           onPrefsChange={updatePrefs}
           enabledGroups={groups}
-          busy={busy}
+          busy={false}
           error={error}
           onSubmit={save}
           canSubmitExtra={Boolean(client && session)}

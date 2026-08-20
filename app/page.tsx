@@ -222,46 +222,77 @@ export default function MemberHomePage() {
     }
   }
 
-  async function save(items: WorkoutDraft[]) {
+  function numOrNull(v?: string | number | null) {
+    if (v === "" || v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function draftsToLocal(items: WorkoutDraft[]): Workout[] {
+    if (!client) return [];
+    return items.map((item) => {
+      const kind = getExerciseKind(item.exercise);
+      const withW = usesWeight(item.exercise);
+      return {
+        id: `tmp_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`,
+        timestamp: new Date().toISOString(),
+        date,
+        clientId: client.id,
+        clientName: displayName(client),
+        mode: "self",
+        exercise: item.exercise,
+        minutes: kind === "cardio" ? numOrNull(item.minutes) : null,
+        weight: kind === "cardio" || !withW ? null : numOrNull(item.weight),
+        reps: kind === "cardio" ? null : numOrNull(item.reps),
+        sets: numOrNull(item.sets),
+        rpe: numOrNull(item.rpe),
+        memo: item.memo || "",
+        actor: "client",
+      };
+    });
+  }
+
+  function save(items: WorkoutDraft[]) {
     if (!client) return;
     if (!items.length || !findCatalogItem(items[0].exercise)) {
       setError("種目を選んでください");
       return;
     }
 
-    setBusy(true);
     setError("");
-    try {
-      const saved = await addWorkouts({
-        clientId: client.id,
-        clientName: displayName(client),
-        mode: "self",
-        actor: "client",
-        date,
-        items,
-        code: client.code,
-      });
-      setWorkouts((prev) => {
-        const next = [...saved, ...prev];
-        saveWorkoutCache(client.id, next);
-        return next;
-      });
-      setDraft(emptyDraft());
-      window.setTimeout(() => {
-        void listWorkouts({
-          clientId: client.id,
-          limit: 200,
-          code: client.code,
-        }).then((rows) => {
-          setWorkouts(rows);
-          saveWorkoutCache(client.id, rows);
+    const optimistic = draftsToLocal(items);
+    const tempIds = new Set(optimistic.map((w) => w.id));
+    setWorkouts((prev) => {
+      const next = [...optimistic, ...prev];
+      saveWorkoutCache(client.id, next);
+      return next;
+    });
+    setDraft(emptyDraft());
+
+    void addWorkouts({
+      clientId: client.id,
+      clientName: displayName(client),
+      mode: "self",
+      actor: "client",
+      date,
+      items,
+      code: client.code,
+    })
+      .then((saved) => {
+        setWorkouts((prev) => {
+          const next = [...saved, ...prev.filter((w) => !tempIds.has(w.id))];
+          saveWorkoutCache(client.id, next);
+          return next;
         });
-      }, 1200);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+      })
+      .catch((err) => {
+        setWorkouts((prev) => {
+          const next = prev.filter((w) => !tempIds.has(w.id));
+          saveWorkoutCache(client.id, next);
+          return next;
+        });
+        setError(err instanceof Error ? err.message : String(err));
+      });
   }
 
   async function saveGroup(input: {
@@ -270,104 +301,130 @@ export default function MemberHomePage() {
     lines: EditSetLine[];
   }) {
     if (!client) return;
-    setBusy(true);
     setError("");
-    try {
-      const kind = getExerciseKind(input.exercise);
-      const withW = usesWeight(input.exercise);
-      const results = await Promise.all(
-        input.lines.map(async (line) => {
-          if (line.id) {
-            await updateWorkout({
-              id: line.id,
-              exercise: input.exercise,
-              weight:
-                kind === "cardio" || !withW
-                  ? null
-                  : line.weight === ""
+    const kind = getExerciseKind(input.exercise);
+    const withW = usesWeight(input.exercise);
+    const existingIds = new Set(input.existing.map((w) => w.id));
+    const rollback = workouts;
+    const rebuilt: Workout[] = input.lines.map((line) => {
+      const prev = line.id ? workouts.find((w) => w.id === line.id) : undefined;
+      return {
+        id: prev?.id || `tmp_${Math.random().toString(36).slice(2, 10)}`,
+        timestamp: prev?.timestamp || new Date().toISOString(),
+        date,
+        clientId: client.id,
+        clientName: displayName(client),
+        mode: "self",
+        exercise: input.exercise,
+        minutes: kind === "cardio" ? numOrNull(line.minutes) : null,
+        weight: kind === "cardio" || !withW ? null : numOrNull(line.weight),
+        reps: kind === "cardio" ? null : numOrNull(line.reps),
+        sets: prev?.sets ?? null,
+        rpe: null,
+        memo: line.memo || "",
+        actor: "client",
+      };
+    });
+    const nextLocal = [
+      ...workouts.filter((w) => !existingIds.has(w.id)),
+      ...rebuilt,
+    ];
+    setWorkouts(nextLocal);
+    saveWorkoutCache(client.id, nextLocal);
+
+    void (async () => {
+      try {
+        const results = await Promise.all(
+          input.lines.map(async (line) => {
+            if (line.id) {
+              await updateWorkout({
+                id: line.id,
+                exercise: input.exercise,
+                weight:
+                  kind === "cardio" || !withW
                     ? null
-                    : Number(line.weight),
-              reps:
-                kind === "cardio"
-                  ? null
-                  : line.reps === ""
+                    : line.weight === ""
+                      ? null
+                      : Number(line.weight),
+                reps:
+                  kind === "cardio"
                     ? null
-                    : Number(line.reps),
-              minutes:
-                kind === "cardio"
-                  ? line.minutes === ""
-                    ? null
-                    : Number(line.minutes)
-                  : null,
-              memo: line.memo,
+                    : line.reps === ""
+                      ? null
+                      : Number(line.reps),
+                minutes:
+                  kind === "cardio"
+                    ? line.minutes === ""
+                      ? null
+                      : Number(line.minutes)
+                    : null,
+                memo: line.memo,
+                code: client.code,
+              });
+              return line.id;
+            }
+            const created = await addWorkouts({
+              clientId: client.id,
+              clientName: displayName(client),
+              mode: "self",
+              actor: "client",
+              date,
+              items: [
+                {
+                  exercise: input.exercise,
+                  weight: kind === "cardio" || !withW ? "" : line.weight,
+                  reps: kind === "cardio" ? "" : line.reps,
+                  minutes: kind === "cardio" ? line.minutes : "",
+                  sets: "",
+                  rpe: "",
+                  memo: line.memo,
+                },
+              ],
               code: client.code,
             });
-            return line.id;
-          }
-          const created = await addWorkouts({
-            clientId: client.id,
-            clientName: displayName(client),
-            mode: "self",
-            actor: "client",
-            date,
-            items: [
-              {
-                exercise: input.exercise,
-                weight: kind === "cardio" || !withW ? "" : line.weight,
-                reps: kind === "cardio" ? "" : line.reps,
-                minutes: kind === "cardio" ? line.minutes : "",
-                sets: "",
-                rpe: "",
-                memo: line.memo,
-              },
-            ],
-            code: client.code,
-          });
-          return created.map((c) => c.id);
-        }),
-      );
-      const kept = new Set(results.flat());
-      const removeIds = input.existing
-        .map((w) => w.id)
-        .filter((id) => !kept.has(id));
-      if (removeIds.length) {
-        await deleteWorkouts(removeIds, { code: client.code });
+            return created.map((c) => c.id);
+          })
+        );
+        const kept = new Set(results.flat());
+        const removeIds = input.existing
+          .map((w) => w.id)
+          .filter((id) => !kept.has(id));
+        if (removeIds.length) {
+          await deleteWorkouts(removeIds, { code: client.code });
+        }
+        const rows = await listWorkouts({
+          clientId: client.id,
+          limit: 200,
+          code: client.code,
+        });
+        setWorkouts(rows);
+        saveWorkoutCache(client.id, rows);
+      } catch (err) {
+        setWorkouts(rollback);
+        saveWorkoutCache(client.id, rollback);
+        setError(err instanceof Error ? err.message : String(err));
       }
-
-      const rows = await listWorkouts({
-        clientId: client.id,
-        limit: 200,
-        code: client.code,
-      });
-      setWorkouts(rows);
-      saveWorkoutCache(client.id, rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+    })();
   }
 
   async function deleteGroup(items: Workout[]) {
     if (!client) return;
-    setBusy(true);
     setError("");
-    try {
-      await deleteWorkouts(
-        items.map((w) => w.id),
-        { code: client.code }
-      );
-      setWorkouts((prev) => {
-        const ids = new Set(items.map((w) => w.id));
-        const next = prev.filter((w) => !ids.has(w.id));
-        saveWorkoutCache(client.id, next);
-        return next;
-      });
-    } catch (err) {
+    const ids = new Set(items.map((w) => w.id));
+    const rollback = workouts;
+    setWorkouts((prev) => {
+      const next = prev.filter((w) => !ids.has(w.id));
+      saveWorkoutCache(client.id, next);
+      return next;
+    });
+    void deleteWorkouts(
+      items.map((w) => w.id).filter((id) => !id.startsWith("tmp_")),
+      { code: client.code }
+    ).catch((err) => {
+      setWorkouts(rollback);
+      saveWorkoutCache(client.id, rollback);
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   function logout() {
@@ -496,9 +553,6 @@ export default function MemberHomePage() {
 
   return (
     <main className="shell member session wide">
-      {busy ? (
-        <LoadingScreen overlay label="記録を反映しています" />
-      ) : null}
       <header className="member-hero">
         <div className="session-rail member-hero-inner">
           <div className="member-hero-left">
@@ -537,7 +591,7 @@ export default function MemberHomePage() {
             emptyText="まだ記録がありません"
             clientId={client.id}
             date={date}
-            busy={busy}
+            busy={false}
             onSaveGroup={saveGroup}
             onDeleteGroup={deleteGroup}
           />
@@ -549,11 +603,12 @@ export default function MemberHomePage() {
           prefs={prefs}
           onPrefsChange={updatePrefs}
           enabledGroups={groups}
-          busy={busy}
+          busy={false}
           error={error}
           onSubmit={save}
           canSubmitExtra={Boolean(client)}
           history={workouts}
+          stayOpen
         />
       </div>
     </main>

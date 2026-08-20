@@ -57,12 +57,12 @@ export default function MemberHomePage() {
   const [workoutsLoading, setWorkoutsLoading] = useState(false);
   const [view, setView] = useState<View>("log");
   const [prefs, setPrefs] = useState<GroupPrefs>({
-    cardio: true,
+    cardio: false,
     machine: true,
     freeweight: true,
   });
 
-  const groups = enabledGroups(prefs);
+  const groups = enabledGroups({ ...prefs, cardio: false });
 
   const dayWorkouts = useMemo(
     () => workouts.filter((w) => w.date === date),
@@ -90,7 +90,7 @@ export default function MemberHomePage() {
   }
 
   useEffect(() => {
-    setPrefs(loadGroupPrefs());
+    setPrefs({ ...loadGroupPrefs(), cardio: false });
     void (async () => {
       const saved = localStorage.getItem(MEMBER_KEY);
       if (saved) {
@@ -161,10 +161,20 @@ export default function MemberHomePage() {
   }
 
   function updatePrefs(next: GroupPrefs) {
-    setPrefs(next);
-    saveGroupPrefs(next);
+    const patched = { ...next, cardio: false };
+    setPrefs(patched);
+    const disk = loadGroupPrefs();
+    saveGroupPrefs({
+      machine: patched.machine,
+      freeweight: patched.freeweight,
+      cardio: disk.cardio,
+    });
     const item = findCatalogItem(draft.exercise);
-    if (item && !next[item.group]) setDraft(emptyDraft());
+    if (item && item.group === "cardio") {
+      setDraft(emptyDraft());
+      return;
+    }
+    if (item && !patched[item.group]) setDraft(emptyDraft());
   }
 
   async function login(e: FormEvent) {
@@ -609,6 +619,7 @@ export default function MemberHomePage() {
           canSubmitExtra={Boolean(client)}
           history={workouts}
           stayOpen
+          variant="member"
         />
       </div>
     </main>

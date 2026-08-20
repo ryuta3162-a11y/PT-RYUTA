@@ -29,9 +29,16 @@ type Props = {
   draft: WorkoutDraft;
   onChange: (next: WorkoutDraft) => void;
   enabledGroups: AreaGroup[];
+  /** false でマシン画像なし（テキスト一覧） */
+  showImages?: boolean;
 };
 
-export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
+export function ExercisePicker({
+  draft,
+  onChange,
+  enabledGroups,
+  showImages = true,
+}: Props) {
   const [part, setPart] = useState<BodyPart | null>(null);
   const [open, setOpen] = useState(!draft.exercise);
 
@@ -54,8 +61,8 @@ export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
   }, [filtered, part]);
 
   const kind = getExerciseKind(draft.exercise);
-  const pickedImg = findExerciseImage(draft.exercise, "sm");
-  const showMachineGrid = filtered.some((item) => item.imageId);
+  const pickedImg = showImages ? findExerciseImage(draft.exercise, "sm") : null;
+  const showMachineGrid = showImages && filtered.some((item) => item.imageId);
 
   function selectItem(item: CatalogItem) {
     onChange({ ...draft, exercise: item.name });
@@ -67,9 +74,7 @@ export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
   }
 
   if (!enabledGroups.length) {
-    return (
-      <p className="error">先に CRF（C / R / F）を選んでください</p>
-    );
+    return <p className="error">先に TYPE を選んでください</p>;
   }
 
   if (draft.exercise && !open) {
@@ -81,11 +86,13 @@ export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={pickedImg} alt="" />
             </span>
-          ) : null}
+          ) : (
+            <span className="picked-mark" aria-hidden>
+              {usesWeight(draft.exercise) ? "kg" : "×"}
+            </span>
+          )}
           <div>
-            <p className="tiny muted" style={{ margin: 0 }}>
-              Equipment
-            </p>
+            <p className="tiny muted picked-eyebrow">Equipment</p>
             <p className="picked-name">
               {draft.exercise}
               <span className="picked-kind">
@@ -127,7 +134,15 @@ export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
         })}
       </div>
 
-      <div className={showMachineGrid ? "picker-list machine-mode" : "picker-list"}>
+      <div
+        className={[
+          "picker-list",
+          showMachineGrid ? "machine-mode" : "",
+          !showImages ? "text-mode" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {grouped.map((group) => (
           <div key={group.part} className="picker-group">
             {!part ? (
@@ -137,35 +152,53 @@ export function ExercisePicker({ draft, onChange, enabledGroups }: Props) {
               </p>
             ) : null}
 
-            <div className="machine-grid">
-              {group.items.map((item) => {
-                const src = machineImageSrc(item, "sm");
-                const on = draft.exercise === item.name;
-                const icon = isLineIcon(item);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={[
-                      "machine-card",
-                      on ? "on" : "",
-                      icon ? "icon" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => selectItem(item)}
-                  >
-                    <span className="machine-card-media">
-                      {src ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={src} alt="" loading="lazy" />
-                      ) : null}
-                    </span>
-                    <span className="machine-card-name">{item.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {showImages ? (
+              <div className="machine-grid">
+                {group.items.map((item) => {
+                  const src = machineImageSrc(item, "sm");
+                  const on = draft.exercise === item.name;
+                  const icon = isLineIcon(item);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={[
+                        "machine-card",
+                        on ? "on" : "",
+                        icon ? "icon" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => selectItem(item)}
+                    >
+                      <span className="machine-card-media">
+                        {src ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={src} alt="" loading="lazy" />
+                        ) : null}
+                      </span>
+                      <span className="machine-card-name">{item.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="ex-pill-grid">
+                {group.items.map((item) => {
+                  const on = draft.exercise === item.name;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={on ? "ex-pill on" : "ex-pill"}
+                      onClick={() => selectItem(item)}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ))}
         {!filtered.length ? (

@@ -2498,3 +2498,340 @@ button.ex-ord {
     border-right: 1px solid #222;
   }
 }
+
+/* —— 会員アプリ：入力UI —— */
+.shell.member .compose-member {
+  background: linear-gradient(165deg, #1a1a1a 0%, #111 48%, #0c0c0c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 18px 16px 16px;
+  color: #f5f5f5;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 18px 48px rgba(0, 0, 0, 0.55);
+  animation: member-compose-in 0.28s ease-out;
+}
+
+@keyframes member-compose-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shell.member .compose-member .compose-head {
+  align-items: flex-start;
+}
+
+.shell.member .compose-kicker {
+  margin: 0 0 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.shell.member .compose-member .compose-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+  text-transform: none;
+  color: #fff;
+  font-weight: 900;
+}
+
+.shell.member .compose-member .text-link {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.shell.member .compose-member .group-pref-title {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.shell.member .compose-member .group-pref-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.shell.member .compose-member .group-pref-card.on {
+  background: #fff;
+  border-color: #fff;
+  color: #111;
+}
+
+.shell.member .compose-member .group-pref-mark {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.shell.member .compose-member .group-pref-card.on .group-pref-mark {
+  background: #111;
+  color: #fff;
+}
+
+.shell.member .compose-member .group-pref-name {
+  color: inherit;
+}
+
+.shell.member .compose-member .part-dot {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.shell.member .compose-member .part-dot-mark {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  border: 0;
+}
+
+.shell.member .compose-member .part-dot-label {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.shell.member .compose-member .part-dot.on {
+  background: #fff;
+  border-color: #fff;
+}
+
+.shell.member .compose-member .part-dot.on .part-dot-mark {
+  color: #111;
+}
+
+.shell.member .compose-member .part-dot.on .part-dot-label {
+  color: #444;
+}
+
+.shell.member .compose-member .picker-group-title {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.shell.member .compose-member .picker-group-title span {
+  background: #fff;
+  color: #111;
+}
+
+.shell.member .compose-member .picker-list.text-mode {
+  max-height: min(38vh, 320px);
+  gap: 14px;
+}
+
+.ex-pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ex-pill {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f0f0f0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.ex-pill:active {
+  transform: scale(0.97);
+}
+
+.ex-pill.on {
+  background: #fff;
+  border-color: #fff;
+  color: #111;
+}
+
+.shell.member .compose-member .picked-bar {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.shell.member .compose-member .picked-eyebrow {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.shell.member .compose-member .picked-name {
+  color: #fff;
+}
+
+.shell.member .compose-member .picked-kind {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.picked-mark {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #111;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.shell.member .compose-member .btn.ghost {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  background: transparent;
+}
+
+.shell.member .compose-member .set-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+  border-radius: 16px;
+}
+
+.shell.member .compose-member .set-card-title {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.shell.member .compose-member .set-card-title strong {
+  color: #fff;
+}
+
+.shell.member .compose-member .set-remove {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.shell.member .compose-member .step-field-label {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.shell.member .compose-member .step-btn {
+  background: #fff;
+  border-color: #fff;
+  color: #111;
+}
+
+.shell.member .compose-member .step-btn:active:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.shell.member .compose-member .step-field-value {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.shell.member .compose-member .step-field-value input {
+  color: #fff;
+}
+
+.shell.member .compose-member .step-field-value em {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.shell.member .compose-member .set-input.memo {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 12px;
+}
+
+.shell.member .compose-member .set-input.memo::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.shell.member .compose-member .set-add {
+  background: transparent;
+  border: 1.5px dashed rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.shell.member .compose-member .set-add:active {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.shell.member .compose-member .drop-toggle {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+}
+
+.shell.member .compose-member .drop-banner {
+  background: #fff;
+  color: #111;
+}
+
+.shell.member .compose-member .copy-last-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.shell.member .compose-member .btn.primary.compose-submit {
+  min-height: 54px;
+  border-radius: 14px;
+  background: #fff;
+  border-color: #fff;
+  color: #111;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+
+.shell.member .compose-member .btn.primary.compose-submit:disabled {
+  opacity: 0.35;
+}
+
+.shell.member .compose-member .btn.primary.compose-submit:active:not(:disabled) {
+  background: #eaeaea;
+}
+
+.shell.member .add-fab-btn.member-fab {
+  border-radius: 16px;
+  min-height: 56px;
+  font-size: 1.02rem;
+  letter-spacing: 0.04em;
+  background: #fff;
+  color: #111;
+  border-color: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  animation: member-fab-in 0.32s ease-out;
+}
+
+@keyframes member-fab-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shell.member .add-fab-btn.member-fab:active {
+  background: #ececec;
+}
+
+.shell.member .ex-thumb,
+.shell.member .compose-thumb {
+  display: none !important;
+}
+

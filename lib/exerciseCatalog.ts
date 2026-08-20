@@ -29,7 +29,7 @@ export const AREA_LABELS: Record<AreaGroup, string> = {
   freeweight: "Free Weight",
 };
 
-/** 有酸素（分） — 画像元: 24KYODO-MACHINE cardio_1〜3 */
+/** 有酸素（分） — 画像は public/machines に保管（履歴用）。会員アプリでは一旦非表示 */
 export const CARDIO_ITEMS: CatalogItem[] = [
   {
     id: "c_treadmill",

@@ -31,6 +31,8 @@ type Props = {
   history?: Workout[];
   startOpen?: boolean;
   stayOpen?: boolean;
+  /** 会員アプリ向け（カーディオ非表示・画像なし・見た目刷新） */
+  variant?: "default" | "member";
 };
 
 function emptySet(prev?: SetLine): SetLine {
@@ -79,7 +81,9 @@ export function QuickLogPanel({
   history = [],
   startOpen = false,
   stayOpen = false,
+  variant = "default",
 }: Props) {
+  const member = variant === "member";
   const [open, setOpen] = useState(startOpen);
   const kind = getExerciseKind(draft.exercise);
   const withWeight = usesWeight(draft.exercise);
@@ -167,7 +171,7 @@ export function QuickLogPanel({
 
   const canSubmit =
     canSubmitExtra &&
-    hasAnyGroup(prefs) &&
+    hasAnyGroup(member ? { ...prefs, cardio: false } : prefs) &&
     (kind === "cardio" ? cardioReady : strengthReady);
 
   function handleSubmit() {
@@ -219,18 +223,21 @@ export function QuickLogPanel({
     return (
       <button
         type="button"
-        className="add-fab-btn"
+        className={member ? "add-fab-btn member-fab" : "add-fab-btn"}
         onClick={() => setOpen(true)}
       >
-        追加
+        ＋ 種目を追加
       </button>
     );
   }
 
   return (
-    <section className="compose-card">
+    <section className={member ? "compose-card compose-member" : "compose-card"}>
       <div className="compose-head">
-        <h2>追加</h2>
+        <div>
+          {member ? <p className="compose-kicker">Log set</p> : null}
+          <h2>{member ? "記録する" : "追加"}</h2>
+        </div>
         <button
           type="button"
           className="text-link tiny"
@@ -241,9 +248,14 @@ export function QuickLogPanel({
         </button>
       </div>
 
-      <GroupPrefToggle value={prefs} onChange={onPrefsChange} compact />
+      <GroupPrefToggle
+        value={prefs}
+        onChange={onPrefsChange}
+        compact
+        hideGroups={member ? ["cardio"] : []}
+      />
 
-      {hasAnyGroup(prefs) ? (
+      {hasAnyGroup(member ? { ...prefs, cardio: false } : prefs) ? (
         <>
           <ExercisePicker
             draft={draft}
@@ -256,6 +268,7 @@ export function QuickLogPanel({
               }
             }}
             enabledGroups={enabledGroups}
+            showImages={!member}
           />
 
           {draft.exercise &&
@@ -415,7 +428,7 @@ export function QuickLogPanel({
       {error ? <p className="error">{error}</p> : null}
 
       <button
-        className="btn primary"
+        className={member ? "btn primary compose-submit" : "btn primary"}
         type="button"
         disabled={busy || !canSubmit}
         onClick={handleSubmit}

@@ -17,18 +17,29 @@ type Props = {
   value: GroupPrefs;
   onChange: (next: GroupPrefs) => void;
   compact?: boolean;
+  /** 会員アプリなど、一時的に隠すグループ */
+  hideGroups?: AreaGroup[];
 };
 
-export function GroupPrefToggle({ value, onChange, compact }: Props) {
+export function GroupPrefToggle({
+  value,
+  onChange,
+  compact,
+  hideGroups = [],
+}: Props) {
+  const options = OPTIONS.filter((opt) => !hideGroups.includes(opt.id));
+
   function toggle(id: AreaGroup) {
     onChange({ ...value, [id]: !value[id] });
   }
 
+  const anyOn = options.some((opt) => value[opt.id]);
+
   return (
     <div className={compact ? "group-pref compact" : "group-pref"}>
-      <p className="group-pref-title">CRF</p>
+      <p className="group-pref-title">{hideGroups.includes("cardio") ? "TYPE" : "CRF"}</p>
       <div className="group-pref-grid">
-        {OPTIONS.map((opt) => {
+        {options.map((opt) => {
           const on = value[opt.id];
           return (
             <button
@@ -46,8 +57,12 @@ export function GroupPrefToggle({ value, onChange, compact }: Props) {
           );
         })}
       </div>
-      {!value.cardio && !value.machine && !value.freeweight ? (
-        <p className="notice">C / R / F を1つ以上選んでください</p>
+      {!anyOn ? (
+        <p className="notice">
+          {hideGroups.includes("cardio")
+            ? "R / F を1つ以上選んでください"
+            : "C / R / F を1つ以上選んでください"}
+        </p>
       ) : null}
     </div>
   );

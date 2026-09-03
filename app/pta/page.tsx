@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PtaClientEditPanel } from "@/components/PtaClientEditPanel";
 import { PtaHeader } from "@/components/PtaHeader";
 import {
   listClients,
@@ -28,7 +29,7 @@ function formatEnrolled(c: Client) {
   const raw = String(c.enrolledAt || c.createdAt || "").trim();
   const m = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[1]}/${m[2]}/${m[3]}`;
-  return raw || "—";
+  return raw || "未入力";
 }
 
 function todayTokyo() {
@@ -42,6 +43,7 @@ export default function PtaHomePage() {
   const [q, setQ] = useState("");
   const [opening, setOpening] = useState("");
   const [adding, setAdding] = useState(false);
+  const [editingKey, setEditingKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -86,7 +88,7 @@ export default function PtaHomePage() {
     });
   }, [clients, q]);
 
-  async function openClient(c: Client) {
+  async function openLatest(c: Client) {
     const key = clientRouteKey(c);
     if (!key) return;
     setError("");
@@ -118,6 +120,12 @@ export default function PtaHomePage() {
     }
   }
 
+  function openSessions(c: Client) {
+    const key = clientRouteKey(c);
+    if (!key) return;
+    router.push(`/pta/c/${encodeURIComponent(key)}`);
+  }
+
   async function addClient(e: FormEvent) {
     e.preventDefault();
     setError("");
@@ -134,11 +142,20 @@ export default function PtaHomePage() {
       setCode("");
       setEnrolledAt(todayTokyo());
       setAdding(false);
-      await openClient(created);
+      await openLatest(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
     }
+  }
+
+  function onClientSaved(next: Client) {
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === next.id || clientRouteKey(c) === editingKey ? next : c
+      )
+    );
+    setEditingKey("");
   }
 
   return (
@@ -152,15 +169,16 @@ export default function PtaHomePage() {
             className="btn primary sm pta-hero-add"
             onClick={() => {
               setAdding((v) => !v);
+              setEditingKey("");
               setError("");
             }}
           >
-            {adding ? "閉じる" : "＋ 追加"}
+            {adding ? "閉じる" : "＋ 会員を追加"}
           </button>
         }
       />
 
-      <div className="content session-rail pta-page">
+      <div className="content pta-home">
         {error ? <p className="error">{error}</p> : null}
 
         {adding ? (
@@ -169,7 +187,7 @@ export default function PtaHomePage() {
               <h2>PT会員を追加</h2>
               <span className="meta">手打ち</span>
             </div>
-            <div className="pta-add-fields">
+            <div className="pta-add-fields pta-add-grid">
               <label className="field">
                 <span>氏名</span>
                 <input
@@ -203,10 +221,10 @@ export default function PtaHomePage() {
               </label>
               <button
                 type="submit"
-                className="btn primary"
+                className="btn primary pta-add-submit"
                 disabled={saving}
               >
-                {saving ? "追加中…" : "追加してセッションを開く"}
+                {saving ? "追加中…" : "追加して最新セッションを開く"}
               </button>
             </div>
           </form>
@@ -221,48 +239,73 @@ export default function PtaHomePage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="名前・会員番号"
+              placeholder="名前・会員番号で検索"
               enterKeyHint="search"
             />
           </label>
         </div>
 
-        <section className="section-card">
-          <div className="list-plain">
+        <section className="section-card pta-home-list">
+          <div className="pta-home-head">
+            <span>氏名</span>
+            <span>会員番号</span>
+            <span>入会日</span>
+            <span>操作</span>
+          </div>
+          <div className="pta-home-body">
             {ptClients.map((c) => {
               const key = clientRouteKey(c);
               if (!key) return null;
               const busy = opening === key;
+              const editing = editingKey === key;
               return (
-                <button
-                  key={key}
-                  type="button"
-                  className="row pta-list-row"
-                  onClick={() => void openClient(c)}
-                  disabled={Boolean(opening)}
-                >
-                  <span className="pta-list-main">
-                    <strong>{c.name}</strong>
-                    <span className="pta-list-meta muted tiny">
-                      {busy ? (
-                        "開いています…"
-                      ) : (
-                        <>
-                          <span>会員番号 {c.code}</span>
-                          <span>入会 {formatEnrolled(c)}</span>
-                        </>
-                      )}
-                    </span>
-                  </span>
-                  <span className="pta-list-go" aria-hidden>
-                    ›
-                  </span>
-                </button>
+                <div key={key} className="pta-home-block">
+                  <div className="pta-home-row">
+                    <p className="pta-home-name">{c.name}</p>
+                    <p className="pta-home-code">{c.code || "未入力"}</p>
+                    <p className="pta-home-date">{formatEnrolled(c)}</p>
+                    <div className="pta-home-ops">
+                      <button
+                        type="button"
+                        className="btn primary sm"
+                        onClick={() => void openLatest(c)}
+                        disabled={Boolean(opening)}
+                      >
+                        {busy ? "開いています…" : "最新セッション"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost sm"
+                        onClick={() => openSessions(c)}
+                        disabled={Boolean(opening)}
+                      >
+                        回数一覧
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost sm"
+                        onClick={() => {
+                          setAdding(false);
+                          setEditingKey(editing ? "" : key);
+                        }}
+                        disabled={Boolean(opening)}
+                      >
+                        {editing ? "閉じる" : "修正"}
+                      </button>
+                    </div>
+                  </div>
+                  <PtaClientEditPanel
+                    client={c}
+                    open={editing}
+                    onClose={() => setEditingKey("")}
+                    onSaved={onClientSaved}
+                  />
+                </div>
               );
             })}
             {!ptClients.length ? (
               <div className="empty-diary">
-                まだPT会員がいません。右上の「追加」から氏名・会員番号・入会日を手打ちしてください。
+                まだPT会員がいません。右上の「会員を追加」から氏名・会員番号・入会日を手打ちしてください。
               </div>
             ) : null}
           </div>

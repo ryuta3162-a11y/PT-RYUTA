@@ -1639,7 +1639,7 @@ button.ex-ord {
 
 .pta-app {
   min-height: 100dvh;
-  background: #f3f1f0;
+  background: var(--bg);
 }
 
 .pta-app:has(.shell.member.session) {
@@ -1654,16 +1654,17 @@ button.ex-ord {
   margin: 0;
   min-height: 100dvh;
   padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
-  background: #f3f1f0;
-  color: #1a1a1a;
+  background: var(--bg);
+  color: #f2f2f2;
 }
 
 .pta-hero {
   flex-shrink: 0;
-  background: #1a0505;
+  background: #111;
   color: #fff;
   padding-top: max(12px, env(safe-area-inset-top, 0px));
   padding-bottom: 14px;
+  border-bottom: 1px solid #222;
 }
 
 .pta-hero-inner {
@@ -1680,7 +1681,7 @@ button.ex-ord {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
   text-decoration: none;
   font-size: 1.15rem;
@@ -1697,7 +1698,7 @@ button.ex-ord {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.7);
+  color: #bdbdbd;
 }
 
 .pta-hero-text h1 {
@@ -1728,19 +1729,22 @@ button.ex-ord {
 }
 
 .brand-mark.pta {
-  background: #8b0000;
-  color: #fff;
+  background: #fff;
+  color: #111;
   border: 2px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
 }
 
 .shell.pta .btn.primary {
-  background: #8b0000;
-  border-color: #8b0000;
+  background: #fff;
+  border-color: #fff;
+  color: #111;
 }
 
 .shell.pta .btn.primary:active {
-  background: #6e0000;
+  background: #e8e8e8;
+  border-color: #e8e8e8;
+  color: #111;
 }
 
 .pta-page {
@@ -1759,13 +1763,13 @@ button.ex-ord {
 .pta-count {
   margin: 0;
   font-size: 0.85rem;
-  color: #666;
+  color: #8a8a8a;
   white-space: nowrap;
 }
 
 .pta-count strong {
   font-size: 1.15rem;
-  color: #1a1a1a;
+  color: #fff;
   margin-right: 2px;
 }
 
@@ -1776,6 +1780,89 @@ button.ex-ord {
 
 .pta-search input {
   min-height: 48px;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  color: #fff;
+}
+
+.pta-search input::placeholder {
+  color: #777;
+}
+
+.shell.pta .section-card {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  color: #f2f2f2;
+}
+
+.shell.pta .section-head {
+  border-bottom-color: #2a2a2a;
+}
+
+.shell.pta .section-head h2 {
+  color: #fff;
+}
+
+.shell.pta .section-head .meta {
+  color: #8a8a8a;
+}
+
+.shell.pta .row.pta-list-row {
+  background: transparent;
+  border-bottom: 1px solid #242424;
+  color: #f2f2f2;
+}
+
+.shell.pta .row.pta-list-row:last-child {
+  border-bottom: 0;
+}
+
+.shell.pta .row.pta-list-row:active {
+  background: #1a1a1a;
+}
+
+.shell.pta .pta-list-main strong {
+  color: #fff;
+}
+
+.shell.pta .muted,
+.shell.pta .pta-list-meta {
+  color: #9a9a9a;
+}
+
+.shell.pta .empty-diary {
+  color: #8a8a8a;
+  background: transparent;
+}
+
+.shell.pta .field span {
+  color: #9a9a9a;
+}
+
+.shell.pta .field input,
+.shell.pta .field textarea {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  color: #fff;
+}
+
+.shell.pta .error {
+  color: #ffb4b4;
+}
+
+.shell.pta .pta-session-memo {
+  background: #141414;
+  border-color: #2a2a2a;
+}
+
+.shell.pta .pta-session-memo span {
+  color: #9a9a9a;
+}
+
+.shell.pta .pta-session-memo textarea {
+  background: #0f0f0f;
+  border-color: #2a2a2a;
+  color: #fff;
 }
 
 .pta-list-row {
@@ -1810,7 +1897,7 @@ button.ex-ord {
 }
 
 .pta-list-go {
-  color: #bbb;
+  color: #666;
   font-size: 1.4rem;
   line-height: 1;
 }
@@ -2227,7 +2314,7 @@ button.ex-ord {
   gap: 2px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: #1a0505;
+  background: #111;
   color: #fff;
 }
 

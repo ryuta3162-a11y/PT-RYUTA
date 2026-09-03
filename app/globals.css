@@ -1897,10 +1897,41 @@ button.ex-ord {
   padding: 14px 16px !important;
 }
 
+.pta-list-row.pta-session-row {
+  align-items: flex-start;
+  min-height: 0;
+  padding: 16px !important;
+}
+
 .pta-list-main {
   display: grid;
   gap: 3px;
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pta-session-row-top {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.pta-session-memo-preview {
+  display: block;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.55;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #cfcfcf;
+}
+
+.pta-session-memo-preview.empty {
+  color: #666;
+  font-weight: 400;
 }
 
 .pta-list-meta {

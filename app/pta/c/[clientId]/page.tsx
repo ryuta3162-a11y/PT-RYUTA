@@ -148,18 +148,27 @@ export default function PtaClientSessionsPage() {
           <div className="list-plain">
             {sorted.map((s) => {
               const n = uniqueExerciseCount(s);
+              const memo = String(s.memo || "").trim();
               return (
                 <Link
                   key={s.id}
                   href={`/pta/c/${encodeURIComponent(key)}/s/${s.id}`}
-                  className="row pta-list-row"
+                  className="row pta-list-row pta-session-row"
                 >
                   <span className="pta-list-main">
-                    <strong>第{s.sessionNo}回</strong>
-                    <span className="muted tiny">
-                      {n ? `${n}種目` : "まだ記録なし"}
-                      {s.memo ? ` · ${s.memo.slice(0, 28)}` : ""}
+                    <span className="pta-session-row-top">
+                      <strong>第{s.sessionNo}回</strong>
+                      <span className="muted tiny">
+                        {n ? `${n}種目` : "まだ記録なし"}
+                      </span>
                     </span>
+                    {memo ? (
+                      <span className="pta-session-memo-preview">{memo}</span>
+                    ) : (
+                      <span className="pta-session-memo-preview empty">
+                        メモなし
+                      </span>
+                    )}
                   </span>
                   <span className="pta-list-go" aria-hidden>
                     ›

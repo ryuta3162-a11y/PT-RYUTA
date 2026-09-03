@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { EditSetLine } from "@/components/EditExerciseSheet";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { PtaClientEditPanel } from "@/components/PtaClientEditPanel";
 import { PtaHeader } from "@/components/PtaHeader";
 import { QuickLogPanel } from "@/components/QuickLogPanel";
 import { SessionLog } from "@/components/SessionLog";
@@ -121,6 +122,7 @@ export default function PtaSessionEditPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [editingClient, setEditingClient] = useState(false);
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState<GroupPrefs>({
     cardio: true,
@@ -297,16 +299,49 @@ export default function PtaSessionEditPage() {
     }
   }
 
+  async function onClientSaved(next: Client) {
+    const prevKey = client ? clientRouteKey(client) : "";
+    const nextKey = clientRouteKey(next);
+    setClient(next);
+    if (session) {
+      try {
+        const updated = await upsertPtSession({
+          id: session.id,
+          clientId: nextKey,
+          clientName: next.name,
+          sessionNo: session.sessionNo,
+          exercises: workoutsToExercises(workoutsRef.current),
+          memo: memoRef.current,
+        });
+        setSession(updated);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    }
+    if (prevKey && nextKey && prevKey !== nextKey) {
+      router.replace(
+        `/pta/c/${encodeURIComponent(nextKey)}/s/${sessionId}`
+      );
+    }
+  }
+
+  function formatClientMeta(c: Client) {
+    const raw = String(c.enrolledAt || c.createdAt || "").trim();
+    const m = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
+    const day = m ? `${m[1]}/${m[2]}/${m[3]}` : "—";
+    return `会員番号 ${c.code} · 入会 ${day}`;
+  }
+
   if (loading && !client) {
     return (
-      <main className="shell member session wide pta">
+      <main className="shell pta session">
         <LoadingScreen label="セッションを開いています…" full={false} />
       </main>
     );
   }
 
   return (
-    <main className="shell member session wide pta">
+    <main className="shell pta session">
       {busy ? (
         <LoadingScreen overlay label="セッションを削除しています…" />
       ) : null}
@@ -322,57 +357,84 @@ export default function PtaSessionEditPage() {
         }
         title={client?.name || "PT会員"}
         action={
-          <button
-            type="button"
-            className="text-link tiny pta-delete"
-            onClick={removeSession}
-            disabled={busy}
-          >
-            削除
-          </button>
+          <div className="pta-hero-actions">
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setEditingClient((v) => !v)}
+              disabled={!client}
+            >
+              {editingClient ? "閉じる" : "修正"}
+            </button>
+            <button
+              type="button"
+              className="text-link tiny pta-delete"
+              onClick={removeSession}
+              disabled={busy}
+            >
+              削除
+            </button>
+          </div>
         }
       />
 
-      <div className="content session-flow session-rail">
-        {error ? <p className="error">{error}</p> : null}
+      <div className="content session-rail pta-desk">
+        {error ? <p className="error pta-desk-error">{error}</p> : null}
 
-        <label className="field pta-session-memo">
-          <span>セッションメモ</span>
-          <textarea
-            rows={2}
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            onBlur={() => void saveMemo()}
-            placeholder="体調、方針、次回への申し送り"
-          />
-        </label>
+        {client ? (
+          <p className="pta-client-meta muted tiny">{formatClientMeta(client)}</p>
+        ) : null}
 
-        <div className="session-log-area">
-          <SessionLog
-            workouts={workouts}
-            emptyText="まだ記録がありません"
-            clientId={client ? clientRouteKey(client) : undefined}
-            date={session ? `s${session.sessionNo}` : undefined}
-            busy={false}
-            onSaveGroup={saveGroup}
-            onDeleteGroup={deleteGroup}
+        {client ? (
+          <PtaClientEditPanel
+            client={client}
+            open={editingClient}
+            onClose={() => setEditingClient(false)}
+            onSaved={(next) => void onClientSaved(next)}
           />
+        ) : null}
+
+        <div className="pta-desk-main">
+          <label className="field pta-session-memo">
+            <span>セッションメモ</span>
+            <textarea
+              rows={2}
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              onBlur={() => void saveMemo()}
+              placeholder="体調、方針、次回への申し送り"
+            />
+          </label>
+
+          <div className="session-log-area">
+            <SessionLog
+              workouts={workouts}
+              emptyText="まだ記録がありません"
+              clientId={client ? clientRouteKey(client) : undefined}
+              date={session ? `s${session.sessionNo}` : undefined}
+              busy={false}
+              onSaveGroup={saveGroup}
+              onDeleteGroup={deleteGroup}
+            />
+          </div>
         </div>
 
-        <QuickLogPanel
-          draft={draft}
-          onChange={setDraft}
-          prefs={prefs}
-          onPrefsChange={updatePrefs}
-          enabledGroups={groups}
-          busy={false}
-          error={error}
-          onSubmit={save}
-          canSubmitExtra={Boolean(client && session)}
-          history={history}
-          startOpen
-          stayOpen
-        />
+        <div className="pta-desk-compose">
+          <QuickLogPanel
+            draft={draft}
+            onChange={setDraft}
+            prefs={prefs}
+            onPrefsChange={updatePrefs}
+            enabledGroups={groups}
+            busy={false}
+            error={error}
+            onSubmit={save}
+            canSubmitExtra={Boolean(client && session)}
+            history={history}
+            startOpen
+            stayOpen
+          />
+        </div>
       </div>
     </main>
   );

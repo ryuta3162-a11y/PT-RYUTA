@@ -614,17 +614,43 @@ function upsertClientInternal_(p) {
   return normalizeClient_(client);
 }
 
-/** PTアプリから手打ち追加。メモは必ず PT */
+/** PTアプリから手打ち追加・修正。メモは必ず PT */
 function upsertPtClient_(p) {
   ensureClientEnrolledAtColumn_();
   var name = String(p.name || '').trim();
   if (!name) throw new Error('氏名を入力してください');
   var enrolledAt = sheetDate_(p.enrolledAt || '');
   if (!enrolledAt) throw new Error('入会日を入力してください');
+  var memberNo = assertMemberNo_(p.code);
+  var id = String(p.id || '').trim();
+
+  if (id) {
+    var all = listAllClientRows_();
+    var existing = all.find(function (c) {
+      return String(c.id) === id;
+    });
+    if (!existing) throw new Error('会員が見つかりません');
+    var clash = all.find(function (c) {
+      return (
+        normalizeMemberNo_(c.code) === memberNo && String(c.id) !== id
+      );
+    });
+    if (clash) throw new Error('この会員番号は別の会員で使われています');
+    var updated = updateRowById_(SHEETS.CLIENTS, existing.id, {
+      '氏名': name,
+      '会員番号': memberNo,
+      'メモ': 'PT',
+      '入会日': enrolledAt,
+      '有効': 'TRUE'
+    });
+    if (!updated) throw new Error('更新に失敗しました');
+    return publicClient_(normalizeClient_(updated));
+  }
+
   return publicClient_(
     upsertClientInternal_({
       name: name,
-      code: p.code,
+      code: memberNo,
       notes: 'PT',
       goal: p.goal || '',
       enrolledAt: enrolledAt

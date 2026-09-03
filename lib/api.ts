@@ -322,8 +322,9 @@ export async function upsertClient(input: {
   throw new Error("会員の追加・変更はスプレッドシート「会員マスタ」からのみ行えます");
 }
 
-/** PTアプリから手打ちでPT会員を追加（メモ=PT・入会日必須） */
+/** PTアプリから手打ちでPT会員を追加・修正（メモ=PT・入会日必須） */
 export async function upsertPtClient(input: {
+  id?: string;
   name: string;
   code: string;
   enrolledAt: string;
@@ -341,23 +342,42 @@ export async function upsertPtClient(input: {
     if (!/^\d{10}$/.test(memberNo)) {
       throw new Error("会員番号は10桁の数字で入力してください");
     }
-    const idx = db.clients.findIndex(
+    const byId = input.id
+      ? db.clients.findIndex((c) => c.id === input.id)
+      : -1;
+    const byCode = db.clients.findIndex(
       (c) => c.code.replace(/\D/g, "") === memberNo
     );
-    const now = new Date().toISOString();
-    if (idx >= 0) {
-      db.clients[idx] = {
-        ...db.clients[idx],
+    if (byId >= 0) {
+      if (byCode >= 0 && byCode !== byId) {
+        throw new Error("この会員番号は別の会員で使われています");
+      }
+      db.clients[byId] = {
+        ...db.clients[byId],
         name,
         code: memberNo,
         notes: "PT",
         enrolledAt,
-        goal: input.goal || db.clients[idx].goal || "",
+        goal: input.goal || db.clients[byId].goal || "",
         active: true,
       };
       writeDb(db);
       invalidateClientsCache();
-      return db.clients[idx];
+      return db.clients[byId];
+    }
+    if (byCode >= 0) {
+      db.clients[byCode] = {
+        ...db.clients[byCode],
+        name,
+        code: memberNo,
+        notes: "PT",
+        enrolledAt,
+        goal: input.goal || db.clients[byCode].goal || "",
+        active: true,
+      };
+      writeDb(db);
+      invalidateClientsCache();
+      return db.clients[byCode];
     }
     const created: Client = {
       id: uid("cli"),
@@ -367,7 +387,7 @@ export async function upsertPtClient(input: {
       goal: input.goal || "",
       notes: "PT",
       enrolledAt,
-      createdAt: now,
+      createdAt: new Date().toISOString(),
       active: true,
     };
     db.clients.push(created);
@@ -378,6 +398,7 @@ export async function upsertPtClient(input: {
 
   const data = await callGas<{ client: Client }>({
     action: "upsertPtClient",
+    id: input.id,
     name,
     code,
     enrolledAt,

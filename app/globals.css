@@ -1716,8 +1716,24 @@ button.ex-ord {
   flex-shrink: 0;
 }
 
+.pta-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .pta-hero-add {
   white-space: nowrap;
+}
+
+.shell.pta .btn.ghost {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+}
+
+.shell.pta .btn.ghost:active {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .pta-delete {
@@ -1900,6 +1916,177 @@ button.ex-ord {
   color: #666;
   font-size: 1.4rem;
   line-height: 1;
+}
+
+.pta-client-meta {
+  margin: 0;
+  grid-column: 1 / -1;
+}
+
+.pta-desk-error {
+  grid-column: 1 / -1;
+}
+
+.pta-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pta-desk {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  width: min(1200px, 100%);
+  padding-top: 16px;
+  padding-bottom: 28px;
+  align-items: start;
+}
+
+.pta-desk-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pta-desk-compose {
+  min-width: 0;
+}
+
+.shell.pta .pta-desk > .compose-card,
+.shell.pta .pta-desk-compose > .compose-card,
+.shell.pta .pta-desk-compose > .add-fab-btn {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.shell.pta .compose-card {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  box-shadow: none;
+  color: #f2f2f2;
+}
+
+.shell.pta .compose-head h2 {
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.05rem;
+}
+
+.shell.pta .group-pref-title {
+  color: #8a8a8a;
+}
+
+.shell.pta .group-pref-card {
+  background: #1a1a1a;
+  border-color: #333;
+  color: #ddd;
+  box-shadow: none;
+}
+
+.shell.pta .group-pref-card.on {
+  background: #fff;
+  border-color: #fff;
+  color: #111;
+}
+
+.shell.pta .part-dot {
+  background: #1a1a1a;
+  border-color: #333;
+}
+
+.shell.pta .picked-bar {
+  background: #1a1a1a;
+  border-color: #333;
+}
+
+.shell.pta .picked-name {
+  color: #fff;
+}
+
+.shell.pta .set-card {
+  background: #1a1a1a;
+  border-color: #333;
+  box-shadow: none;
+}
+
+.shell.pta .set-card-title,
+.shell.pta .step-field-label {
+  color: #8a8a8a;
+}
+
+.shell.pta .set-card-title strong {
+  color: #fff;
+}
+
+.shell.pta .step-field-value {
+  background: #0f0f0f;
+  border-color: #333;
+}
+
+.shell.pta .step-field-value input {
+  color: #fff;
+}
+
+.shell.pta .set-input.memo {
+  background: #0f0f0f;
+  border: 1px solid #333;
+  color: #fff;
+}
+
+.shell.pta .set-add,
+.shell.pta .drop-toggle {
+  background: transparent;
+  border-color: #444;
+  color: #ddd;
+}
+
+.shell.pta .machine-card {
+  background: #1a1a1a;
+  border-color: #333;
+}
+
+.shell.pta .machine-card.on {
+  border-color: #fff;
+}
+
+.shell.pta .machine-card-name {
+  color: #ddd;
+}
+
+.shell.pta .session-log-area .empty-diary {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  color: #8a8a8a;
+}
+
+@media (min-width: 960px) {
+  .pta-desk {
+    grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
+    gap: 24px;
+    padding-top: 20px;
+  }
+
+  .pta-desk > .pta-add-form,
+  .pta-desk > .pta-client-meta,
+  .pta-desk > .pta-desk-error {
+    grid-column: 1 / -1;
+  }
+
+  .pta-desk-compose {
+    position: sticky;
+    top: 16px;
+  }
+
+  .shell.pta .picker-list.machine-mode {
+    max-height: min(58vh, 520px);
+  }
+
+  .shell.pta .machine-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .content.session-flow.pta-session-layout {

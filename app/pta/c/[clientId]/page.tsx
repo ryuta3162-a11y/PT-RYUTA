@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { PtaClientEditPanel } from "@/components/PtaClientEditPanel";
 import { PtaHeader } from "@/components/PtaHeader";
-import { listClients, listPtSessions, peekClients, peekPtSessions, upsertPtSession } from "@/lib/api";
+import {
+  listClients,
+  listPtSessions,
+  peekClients,
+  peekPtSessions,
+  upsertPtSession,
+} from "@/lib/api";
 import {
   clientRouteKey,
   findClientByRouteKey,
@@ -24,6 +31,7 @@ export default function PtaClientSessionsPage() {
   const [sessions, setSessions] = useState<PtSession[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingClient, setEditingClient] = useState(false);
 
   async function refresh(c: Client) {
     const rows = await listPtSessions(clientRouteKey(c));
@@ -82,6 +90,15 @@ export default function PtaClientSessionsPage() {
   const sorted = [...sessions].sort((a, b) => b.sessionNo - a.sessionNo);
   const key = clientRouteKey(client || { id: "", code: clientId }) || clientId;
 
+  function onClientSaved(next: Client) {
+    const prevKey = client ? clientRouteKey(client) : "";
+    const nextKey = clientRouteKey(next);
+    setClient(next);
+    if (prevKey && nextKey && prevKey !== nextKey) {
+      router.replace(`/pta/c/${encodeURIComponent(nextKey)}`);
+    }
+  }
+
   return (
     <main className="shell pta">
       <PtaHeader
@@ -90,19 +107,38 @@ export default function PtaClientSessionsPage() {
         kicker="回数で管理"
         title={client?.name || "PT会員"}
         action={
-          <button
-            type="button"
-            className="btn primary sm pta-hero-add"
-            onClick={createSession}
-            disabled={busy || !client}
-          >
-            {busy ? "…" : "＋ 追加"}
-          </button>
+          <div className="pta-hero-actions">
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setEditingClient((v) => !v)}
+              disabled={!client}
+            >
+              {editingClient ? "閉じる" : "修正"}
+            </button>
+            <button
+              type="button"
+              className="btn primary sm pta-hero-add"
+              onClick={createSession}
+              disabled={busy || !client}
+            >
+              {busy ? "…" : "＋ 追加"}
+            </button>
+          </div>
         }
       />
 
       <div className="content session-rail pta-page">
         {error ? <p className="error">{error}</p> : null}
+
+        {client ? (
+          <PtaClientEditPanel
+            client={client}
+            open={editingClient}
+            onClose={() => setEditingClient(false)}
+            onSaved={onClientSaved}
+          />
+        ) : null}
 
         <section className="section-card">
           <div className="section-head">

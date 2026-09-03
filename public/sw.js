@@ -1,5 +1,5 @@
 /* workout-log service worker */
-const CACHE = "wl-v5";
+const CACHE = "wl-v6";
 const PRECACHE = [
   "/",
   "/ops",
@@ -100,16 +100,14 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(req).then(
-      (cached) =>
-        cached ||
-        fetch(req).then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            void caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-    )
+    fetch(req)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          void caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(req))
   );
 });

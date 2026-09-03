@@ -109,6 +109,7 @@ export function PwaRegister() {
     void navigator.serviceWorker
       .register("/sw.js")
       .then(async (reg) => {
+        void reg.update();
         setPhase((p) => (p === "idle" ? "progress" : p));
         setStatus("ダウンロード準備");
         const sw = reg.installing || reg.waiting || reg.active;

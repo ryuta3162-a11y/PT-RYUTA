@@ -1793,6 +1793,22 @@ button.ex-ord {
   min-width: 0;
 }
 
+.pta-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.pta-add-form {
+  padding-bottom: 14px;
+}
+
+.pta-add-fields {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 4px;
+}
+
 .pta-list-go {
   color: #bbb;
   font-size: 1.4rem;

@@ -97,6 +97,10 @@ function handleRequest(payload) {
           error: '会員の追加・変更はスプレッドシート「会員マスタ」からのみ行えます'
         };
         break;
+      case 'upsertPtClient':
+        requireTrainer_(payload);
+        result = { ok: true, client: upsertPtClient_(payload) };
+        break;
       case 'adminSyncMembers':
         result = { ok: true, clients: adminSyncMembers_(payload) };
         break;
@@ -190,6 +194,7 @@ function ensureSchema_() {
     '有効'
   ]);
   ensureClientNicknameColumn_();
+  ensureClientEnrolledAtColumn_();
   // 旧英語シートが残っていれば参照用に残す（空なら無視）
   migrateLegacyClients_();
   ensureClientIds_();
@@ -388,6 +393,28 @@ function ensureClientNicknameColumn_() {
   sheet.getRange(1, lastCol + 1).setValue('ニックネーム');
 }
 
+function ensureClientEnrolledAtColumn_() {
+  var sheet = ss_().getSheetByName(SHEETS.CLIENTS);
+  if (!sheet) return;
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (headers.indexOf('入会日') >= 0) return;
+  sheet.getRange(1, lastCol + 1).setValue('入会日');
+}
+
+function sheetDate_(value) {
+  if (
+    Object.prototype.toString.call(value) === '[object Date]' &&
+    !isNaN(value.getTime())
+  ) {
+    return Utilities.formatDate(value, 'Asia/Tokyo', 'yyyy-MM-dd');
+  }
+  var s = String(value || '').trim();
+  var m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  return s;
+}
+
 function requireTrainer_(p) {
   // スタッフ画面は URL 分離のみ。PIN認証なし
   return;
@@ -470,6 +497,8 @@ function normalizeClient_(c) {
   var id = String(c.id || '').trim();
   // 手入力行で id 空のとき会員番号を暫定キーにする（ensureClientIds_ で本IDを埋める）
   if (!id && code) id = code;
+  var enrolledAt = sheetDate_(c['入会日'] !== undefined ? c['入会日'] : c.enrolledAt);
+  var createdAt = sheetDate_(c['登録日時'] || c.createdAt || '');
   return {
     id: id,
     name: String(c['氏名'] || c.name || ''),
@@ -477,7 +506,8 @@ function normalizeClient_(c) {
     nickname: String(c['ニックネーム'] || c.nickname || ''),
     goal: String(c['目標'] || c.goal || ''),
     notes: String(c['メモ'] || c.notes || ''),
-    createdAt: String(c['登録日時'] || c.createdAt || ''),
+    enrolledAt: enrolledAt || '',
+    createdAt: createdAt || String(c['登録日時'] || c.createdAt || ''),
     active:
       String(c['有効'] !== undefined ? c['有効'] : c.active) !== 'FALSE' &&
       String(c['有効'] !== undefined ? c['有効'] : c.active) !== 'false'
@@ -510,6 +540,7 @@ function publicClient_(c) {
     nickname: c.nickname || '',
     goal: c.goal || '',
     notes: c.notes || '',
+    enrolledAt: c.enrolledAt || '',
     createdAt: c.createdAt || '',
     active: c.active
   };
@@ -546,6 +577,7 @@ function upsertClientInternal_(p) {
   if (!p.name) throw new Error('氏名は必須です');
   var memberNo = assertMemberNo_(p.code);
   var nickname = String(p.nickname || '').trim();
+  var enrolledAt = sheetDate_(p.enrolledAt || p['入会日'] || '');
   var now = new Date().toISOString();
   var all = listAllClientRows_();
   var existing = all.find(function (c) {
@@ -561,6 +593,7 @@ function upsertClientInternal_(p) {
       '有効': 'TRUE'
     };
     if (p.nickname !== undefined) patch['ニックネーム'] = nickname;
+    if (enrolledAt) patch['入会日'] = enrolledAt;
     var updated = updateRowById_(SHEETS.CLIENTS, existing.id, patch);
     if (!updated) throw new Error('会員が見つかりません');
     return normalizeClient_(updated);
@@ -574,10 +607,29 @@ function upsertClientInternal_(p) {
     'メモ': p.notes || '',
     id: uid_('cli'),
     '登録日時': now,
+    '入会日': enrolledAt || Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd'),
     '有効': 'TRUE'
   };
   appendRow_(SHEETS.CLIENTS, client);
   return normalizeClient_(client);
+}
+
+/** PTアプリから手打ち追加。メモは必ず PT */
+function upsertPtClient_(p) {
+  ensureClientEnrolledAtColumn_();
+  var name = String(p.name || '').trim();
+  if (!name) throw new Error('氏名を入力してください');
+  var enrolledAt = sheetDate_(p.enrolledAt || '');
+  if (!enrolledAt) throw new Error('入会日を入力してください');
+  return publicClient_(
+    upsertClientInternal_({
+      name: name,
+      code: p.code,
+      notes: 'PT',
+      goal: p.goal || '',
+      enrolledAt: enrolledAt
+    })
+  );
 }
 
 /** トレーナーPIN必須。指定メンバーだけ有効にし、それ以外は無効化する */

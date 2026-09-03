@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PtaHeader } from "@/components/PtaHeader";
 import {
@@ -8,9 +8,11 @@ import {
   listPtSessions,
   peekClients,
   peekPtSessions,
+  upsertPtClient,
   upsertPtSession,
 } from "@/lib/api";
 import { clientRouteKey, isPtClient } from "@/lib/clientKind";
+import { normalizeMemberNo } from "@/lib/member";
 import type { Client } from "@/lib/types";
 
 function latestSessionHref(client: Client) {
@@ -22,12 +24,28 @@ function latestSessionHref(client: Client) {
   return `/pta/c/${encodeURIComponent(key)}/s/${last.id}`;
 }
 
+function formatEnrolled(c: Client) {
+  const raw = String(c.enrolledAt || c.createdAt || "").trim();
+  const m = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+  return raw || "—";
+}
+
+function todayTokyo() {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+}
+
 export default function PtaHomePage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>(() => peekClients() || []);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
   const [opening, setOpening] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [enrolledAt, setEnrolledAt] = useState(todayTokyo);
 
   useEffect(() => {
     void listClients()
@@ -54,12 +72,18 @@ export default function PtaHomePage() {
   const ptClients = useMemo(() => {
     const rows = clients.filter(isPtClient);
     const needle = q.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter(
-      (c) =>
-        c.name.toLowerCase().includes(needle) ||
-        c.code.includes(needle)
-    );
+    const filtered = !needle
+      ? rows
+      : rows.filter(
+          (c) =>
+            c.name.toLowerCase().includes(needle) ||
+            c.code.includes(needle)
+        );
+    return [...filtered].sort((a, b) => {
+      const da = String(a.enrolledAt || a.createdAt || "");
+      const db = String(b.enrolledAt || b.createdAt || "");
+      return db.localeCompare(da);
+    });
   }, [clients, q]);
 
   async function openClient(c: Client) {
@@ -94,12 +118,99 @@ export default function PtaHomePage() {
     }
   }
 
+  async function addClient(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+    try {
+      const created = await upsertPtClient({
+        name: name.trim(),
+        code: normalizeMemberNo(code),
+        enrolledAt,
+      });
+      const rows = await listClients();
+      setClients(rows);
+      setName("");
+      setCode("");
+      setEnrolledAt(todayTokyo());
+      setAdding(false);
+      await openClient(created);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setSaving(false);
+    }
+  }
+
   return (
     <main className="shell pta">
-      <PtaHeader kicker="回数セッション管理" title="PT" />
+      <PtaHeader
+        kicker="回数セッション管理"
+        title="PT"
+        action={
+          <button
+            type="button"
+            className="btn primary sm pta-hero-add"
+            onClick={() => {
+              setAdding((v) => !v);
+              setError("");
+            }}
+          >
+            {adding ? "閉じる" : "＋ 追加"}
+          </button>
+        }
+      />
 
       <div className="content session-rail pta-page">
         {error ? <p className="error">{error}</p> : null}
+
+        {adding ? (
+          <form className="section-card pta-add-form" onSubmit={addClient}>
+            <div className="section-head">
+              <h2>PT会員を追加</h2>
+              <span className="meta">手打ち</span>
+            </div>
+            <div className="pta-add-fields">
+              <label className="field">
+                <span>氏名</span>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="例: 森 ヨシオ"
+                  required
+                  autoComplete="name"
+                />
+              </label>
+              <label className="field">
+                <span>会員番号（10桁）</span>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(normalizeMemberNo(e.target.value))}
+                  placeholder="1304000000"
+                  inputMode="numeric"
+                  pattern="\d{10}"
+                  maxLength={10}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>入会日</span>
+                <input
+                  type="date"
+                  value={enrolledAt}
+                  onChange={(e) => setEnrolledAt(e.target.value)}
+                  required
+                />
+              </label>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={saving}
+              >
+                {saving ? "追加中…" : "追加してセッションを開く"}
+              </button>
+            </div>
+          </form>
+        ) : null}
 
         <div className="pta-toolbar">
           <p className="pta-count">
@@ -132,8 +243,15 @@ export default function PtaHomePage() {
                 >
                   <span className="pta-list-main">
                     <strong>{c.name}</strong>
-                    <span className="muted tiny">
-                      {busy ? "開いています…" : c.code}
+                    <span className="pta-list-meta muted tiny">
+                      {busy ? (
+                        "開いています…"
+                      ) : (
+                        <>
+                          <span>会員番号 {c.code}</span>
+                          <span>入会 {formatEnrolled(c)}</span>
+                        </>
+                      )}
                     </span>
                   </span>
                   <span className="pta-list-go" aria-hidden>
@@ -144,8 +262,7 @@ export default function PtaHomePage() {
             })}
             {!ptClients.length ? (
               <div className="empty-diary">
-                メモが「PT」の会員がいません。会員マスタのメモに PT
-                と入力してください。
+                まだPT会員がいません。右上の「追加」から氏名・会員番号・入会日を手打ちしてください。
               </div>
             ) : null}
           </div>

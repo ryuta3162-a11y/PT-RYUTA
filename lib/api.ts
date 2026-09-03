@@ -322,6 +322,82 @@ export async function upsertClient(input: {
   throw new Error("会員の追加・変更はスプレッドシート「会員マスタ」からのみ行えます");
 }
 
+/** PTアプリから手打ちでPT会員を追加（メモ=PT・入会日必須） */
+export async function upsertPtClient(input: {
+  name: string;
+  code: string;
+  enrolledAt: string;
+  goal?: string;
+}): Promise<Client> {
+  const name = String(input.name || "").trim();
+  const code = String(input.code || "").trim();
+  const enrolledAt = String(input.enrolledAt || "").trim();
+  if (!name) throw new Error("氏名を入力してください");
+  if (!enrolledAt) throw new Error("入会日を入力してください");
+
+  if (!gasUrl()) {
+    const db = readDb();
+    const memberNo = code.replace(/\D/g, "");
+    if (!/^\d{10}$/.test(memberNo)) {
+      throw new Error("会員番号は10桁の数字で入力してください");
+    }
+    const idx = db.clients.findIndex(
+      (c) => c.code.replace(/\D/g, "") === memberNo
+    );
+    const now = new Date().toISOString();
+    if (idx >= 0) {
+      db.clients[idx] = {
+        ...db.clients[idx],
+        name,
+        code: memberNo,
+        notes: "PT",
+        enrolledAt,
+        goal: input.goal || db.clients[idx].goal || "",
+        active: true,
+      };
+      writeDb(db);
+      invalidateClientsCache();
+      return db.clients[idx];
+    }
+    const created: Client = {
+      id: uid("cli"),
+      name,
+      code: memberNo,
+      nickname: "",
+      goal: input.goal || "",
+      notes: "PT",
+      enrolledAt,
+      createdAt: now,
+      active: true,
+    };
+    db.clients.push(created);
+    writeDb(db);
+    invalidateClientsCache();
+    return created;
+  }
+
+  const data = await callGas<{ client: Client }>({
+    action: "upsertPtClient",
+    name,
+    code,
+    enrolledAt,
+    goal: input.goal || "",
+    staff: true,
+  });
+  invalidateClientsCache();
+  return data.client;
+}
+
+function invalidateClientsCache() {
+  clientsMem = null;
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(CLIENTS_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function adminSyncMembers(input: {
   pin: string;
   members: {

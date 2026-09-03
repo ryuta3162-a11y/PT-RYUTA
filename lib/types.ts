@@ -8,6 +8,8 @@ export type Client = {
   nickname?: string;
   goal: string;
   notes: string;
+  /** 入会日 YYYY-MM-DD */
+  enrolledAt?: string;
   createdAt: string;
   active: boolean;
 };

@@ -1829,6 +1829,13 @@ button.ex-ord {
   color: #f2f2f2;
 }
 
+.shell.pta .list-plain button,
+.shell.pta .list-plain .row {
+  background: transparent;
+  border-bottom-color: #242424;
+  color: #f2f2f2;
+}
+
 .shell.pta .row.pta-list-row:last-child {
   border-bottom: 0;
 }
